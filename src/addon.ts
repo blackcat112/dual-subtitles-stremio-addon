@@ -16,6 +16,7 @@ const builder = new addonBuilder(manifest);
  */
 builder.defineSubtitlesHandler(async ({ type, id }) => {
   logger.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  logger.info(`🚀 Dual Subtitles Addon v1.1.0 (Strict Filter v3)`);
   logger.info(`📥 NEW SUBTITLE REQUEST`);
   logger.info(`   Type: ${type}`);
   logger.info(`   ID: ${id}`);
