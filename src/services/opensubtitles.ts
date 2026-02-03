@@ -83,26 +83,53 @@ class OpenSubtitlesClient {
         
         // Strict filtering for episodes
         if (type === 'episode' && season && episode) {
+          let detectedSeason = sub.season;
+          let detectedEpisode = sub.episode;
+
+          // Fallback: Try to parse from filename if metadata is missing or incomplete
+          // Supports formats: S01E01, s1e1, 1x01, 1x1
+          if ((detectedSeason === undefined || detectedEpisode === undefined) && sub.fileName) {
+             const sxxExxMatch = sub.fileName.match(/[sS](\d{1,2})[eE](\d{1,2})/);
+             const xFormatMatch = sub.fileName.match(/(\d{1,2})x(\d{1,2})/);
+             
+             if (sxxExxMatch) {
+                detectedSeason = parseInt(sxxExxMatch[1], 10);
+                detectedEpisode = parseInt(sxxExxMatch[2], 10);
+                logger.debug(`Parsed S${detectedSeason}E${detectedEpisode} from filename: ${sub.fileName}`);
+             } else if (xFormatMatch) {
+                detectedSeason = parseInt(xFormatMatch[1], 10);
+                detectedEpisode = parseInt(xFormatMatch[2], 10);
+                logger.debug(`Parsed ${detectedSeason}x${detectedEpisode} from filename: ${sub.fileName}`);
+             }
+          }
+
           // Check Season
-          if (sub.season !== undefined && sub.season !== null) {
-             if (Number(sub.season) !== Number(season)) {
-               logger.debug(`Filtering out ${sub.fileName}: Season mismatch (${sub.season} vs ${season})`);
+          if (detectedSeason !== undefined && detectedSeason !== null) {
+             if (Number(detectedSeason) !== Number(season)) {
+               logger.debug(`Filtering out ${sub.fileName}: Season mismatch (${detectedSeason} vs ${season})`);
                return false;
              }
           }
           
           // Check Episode
-          if (sub.episode !== undefined && sub.episode !== null) {
-             if (Number(sub.episode) !== Number(episode)) {
-               logger.debug(`Filtering out ${sub.fileName}: Episode mismatch (${sub.episode} vs ${episode})`);
+          if (detectedEpisode !== undefined && detectedEpisode !== null) {
+             if (Number(detectedEpisode) !== Number(episode)) {
+               logger.debug(`Filtering out ${sub.fileName}: Episode mismatch (${detectedEpisode} vs ${episode})`);
                return false;
              }
+          }
+
+          // Ultra-strict mode: If we couldn't detect ANY episode info from metadata OR filename,
+          // and we specifically asked for an episode, we might want to be careful.
+          // For now, we'll allow it but log a warning, as some valid subs might have weird names.
+          if (detectedSeason === undefined && detectedEpisode === undefined) {
+             logger.debug(`Warning: Could not verify episode info for ${sub.fileName}, letting it pass but it might be wrong.`);
           }
         }
         return true;
       });
 
-      logger.success(`Found ${subtitles.length} subtitles for ${imdbId} after filtering`);
+      logger.success(`Found ${subtitles.length} subtitles for ${imdbId} after strict filtering`);
       if (subtitles.length > 0) {
         logger.info(`Top result: ${subtitles[0].fileName} (Season: ${(subtitles[0] as any).season}, Episode: ${(subtitles[0] as any).episode})`);
       } else {
