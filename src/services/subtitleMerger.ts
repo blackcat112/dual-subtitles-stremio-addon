@@ -17,9 +17,6 @@ export function mergeSubtitles(
   const entries1 = parseSRT(srt1Content);
   const entries2 = parseSRT(srt2Content);
   
-  logger.debug(`Parsed ${entries1.length} entries from language 1`);
-  logger.debug(`Parsed ${entries2.length} entries from language 2`);
-  
   if (entries1.length === 0 || entries2.length === 0) {
     logger.warn('One or both subtitle files are empty');
     return '';
@@ -35,45 +32,65 @@ export function mergeSubtitles(
       }))
     : entries2;
   
-  // Use simpler merge strategy: iterate through language 1 and find overlapping language 2
-  const mergedEntries: SubtitleEntry[] = [];
-  const minDuration = 200; // Minimum 200ms duration to avoid ultra-short segments
+  // Union Merge Strategy:
+  // 1. Collect all start/end timestamps from both languages
+  // 2. Sort unique times
+  // 3. Create segments for each interval
+  const allTimes = new Set<number>();
+  entries1.forEach(e => { allTimes.add(e.startTime); allTimes.add(e.endTime); });
+  adjustedEntries2.forEach(e => { allTimes.add(e.startTime); allTimes.add(e.endTime); });
   
-  for (const sub1 of entries1) {
-    // Find overlapping subtitle in language 2
-    const sub2 = adjustedEntries2.find(s2 => 
-      // Check if there's any time overlap
-      (s2.startTime <= sub1.endTime && s2.endTime >= sub1.startTime)
-    );
+  const uniqueTimes = Array.from(allTimes).sort((a, b) => a - b);
+  const mergedEntries: SubtitleEntry[] = [];
+  const minDuration = 500; // Minimum 500ms to be readable
+  
+  for (let i = 0; i < uniqueTimes.length - 1; i++) {
+    const startTime = uniqueTimes[i];
+    const endTime = uniqueTimes[i+1];
     
-    // Skip if duration is too short
-    if (sub1.endTime - sub1.startTime < minDuration) {
-      continue;
-    }
+    // Skip if segment is too short
+    if (endTime - startTime < 400) continue; // Ignore tiny gaps/segments
     
-    // Clean and limit text to first line only (for simplicity)
-    const text1 = sub1.text.split('\n')[0].trim();
+    // Find active subtitles in this interval
+    // We consider a subtitle active if it covers the CENTER of this interval
+    const midPoint = startTime + (endTime - startTime) / 2;
+    
+    const sub1 = entries1.find(e => e.startTime <= midPoint && e.endTime >= midPoint);
+    const sub2 = adjustedEntries2.find(e => e.startTime <= midPoint && e.endTime >= midPoint);
+    
+    if (!sub1 && !sub2) continue;
+    
+    const text1 = sub1 ? sub1.text.split('\n')[0].trim() : '';
     const text2 = sub2 ? sub2.text.split('\n')[0].trim() : '';
     
-    // Skip if first language text is empty
-    if (!text1) {
-      continue;
+    // Only add if we have at least one text
+    if (!text1 && !text2) continue;
+    
+    // Construct merged text
+    // Format:
+    // Text 1
+    // <font color="#ffff00">Text 2</font>
+    let combinedText = text1;
+    if (text2) {
+      if (combinedText) combinedText += '\n';
+      combinedText += `<font color="#ffff00">${text2}</font>`;
     }
     
-    // Create merged entry with both languages
-    const combinedText = text2 
-      ? `${text1}\n${text2}` // Two lines: language 1, then language 2
-      : text1; // Only language 1 if no match
-    
-    mergedEntries.push({
-      index: mergedEntries.length + 1,
-      startTime: sub1.startTime,
-      endTime: sub1.endTime,
-      text: combinedText
-    });
+    // Optimization: Merge with previous entry if text is identical
+    const prev = mergedEntries[mergedEntries.length - 1];
+    if (prev && prev.text === combinedText && prev.endTime === startTime) {
+      prev.endTime = endTime;
+    } else {
+      mergedEntries.push({
+        index: mergedEntries.length + 1,
+        startTime,
+        endTime,
+        text: combinedText
+      });
+    }
   }
   
-  logger.success(`Merged ${mergedEntries.length} subtitle entries`);
+  logger.success(`Merged ${mergedEntries.length} subtitle entries (Union Strategy)`);
   
   // Serialize back to SRT format
   return serializeSRT(mergedEntries);
