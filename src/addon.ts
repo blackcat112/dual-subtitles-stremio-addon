@@ -1,6 +1,10 @@
 import { addonBuilder } from 'stremio-addon-sdk';
 import { manifest } from './config/manifest';
+import { config } from './config';
 import { logger } from './utils/logger';
+import { subtitleStorage } from './utils/storage';
+import { fetchDualSubtitles } from './services/subtitleFetcher';
+import { mergeSubtitles } from './services/subtitleMerger';
 import { StremioSubtitle } from './types';
 
 // Create addon builder with manifest
@@ -16,48 +20,73 @@ builder.defineSubtitlesHandler(async ({ type, id }) => {
   try {
     // Parse the ID to extract IMDB ID and episode info
     // Format: tt1234567 (movie) or tt1234567:1:1 (series S01E01)
-    const [imdbId, season, episode] = id.split(':');
+    const [imdbId, seasonStr, episodeStr] = id.split(':');
+    
+    const season = seasonStr ? parseInt(seasonStr, 10) : undefined;
+    const episode = episodeStr ? parseInt(episodeStr, 10) : undefined;
     
     logger.debug(`Parsed: imdbId=${imdbId}, season=${season}, episode=${episode}`);
+
+    // Get languages from config (later we'll make this configurable)
+    const lang1 = config.defaultLanguages.primary;   // Spanish
+    const lang2 = config.defaultLanguages.secondary; // French
     
-    // TODO: Phase 2-4 implementation
-    // 1. Fetch subtitles from OpenSubtitles in language 1 (e.g., Spanish)
-    // 2. Fetch subtitles from OpenSubtitles in language 2 (e.g., French)
-    // 3. Merge both SRT files
-    // 4. Serve merged subtitle and return URL
-    
-    // For now, return empty array (stub)
-    const subtitles: StremioSubtitle[] = [];
-    
-    /* Phase 2-4 implementation:
-    const lang1 = 'es'; // Spanish
-    const lang2 = 'fr'; // French
-    
-    const [srt1, srt2] = await Promise.all([
-      fetchSubtitle({ imdbId, language: lang1, type: type as 'movie' | 'episode', season, episode }),
-      fetchSubtitle({ imdbId, language: lang2, type: type as 'movie' | 'episode', season, episode })
-    ]);
-    
-    if (srt1 && srt2) {
-      const mergedSRT = mergeSubtitles(srt1, srt2, {
-        topLanguage: lang1,
-        bottomLanguage: lang2
-      });
+    logger.info(`Fetching subtitles: ${lang1} + ${lang2}`);
+
+    // Step 1: Fetch both subtitles (uses cache if available)
+    const [subtitle1, subtitle2] = await fetchDualSubtitles(
+      imdbId,
+      type as 'movie' | 'episode',
+      lang1,
+      lang2,
+      season,
+      episode
+    );
+
+    // Step 2: Check if we got both subtitles
+    if (!subtitle1 || !subtitle2) {
+      logger.warn(`Missing subtitles - ${lang1}: ${!!subtitle1}, ${lang2}: ${!!subtitle2}`);
       
-      // Store and serve merged subtitle
-      const subtitleUrl = await storeSubtitle(mergedSRT, `${imdbId}-${lang1}-${lang2}`);
-      
-      subtitles.push({
-        id: `dual-${lang1}-${lang2}`,
-        lang: `${lang1.toUpperCase()} + ${lang2.toUpperCase()}`,
-        url: subtitleUrl
-      });
+      // Return empty array if we don't have both
+      // Could be enhanced to return single subtitle if only one available
+      return { subtitles: [] };
     }
-    */
+
+    logger.success('Both subtitles fetched successfully');
+
+    // Step 3: Merge the subtitles
+    const mergedContent = mergeSubtitles(subtitle1, subtitle2, {
+      topLanguage: lang1,
+      bottomLanguage: lang2,
+      separator: '\n' // Single newline between languages
+    });
+
+    if (!mergedContent) {
+      logger.error('Failed to merge subtitles');
+      return { subtitles: [] };
+    }
+
+    // Step 4: Store merged subtitle and get serving ID
+    const subtitleId = subtitleStorage.store(mergedContent, imdbId, lang1, lang2);
     
-    logger.info(`Returning ${subtitles.length} subtitles`);
+    // Step 5: Build subtitle URL for Stremio
+    // The subtitle will be served from /subtitle/:id endpoint
+    const baseUrl = process.env.PUBLIC_URL || `http://localhost:${config.port}`;
+    const subtitleUrl = `${baseUrl}/subtitle/${subtitleId}.srt`;
+
+    logger.success(`Merged subtitle ready: ${subtitleUrl}`);
+
+    // Step 6: Return subtitle to Stremio
+    const subtitles: StremioSubtitle[] = [{
+      id: `dual-${lang1}-${lang2}`,
+      lang: `${lang1.toUpperCase()} + ${lang2.toUpperCase()}`,
+      url: subtitleUrl
+    }];
+
+    logger.info(`Returning ${subtitles.length} subtitle(s)`);
     
     return { subtitles };
+
   } catch (error) {
     logger.error('Error in subtitles handler:', error);
     return { subtitles: [] };

@@ -46,11 +46,16 @@ declare module 'stremio-addon-sdk' {
     defineSubtitlesHandler(
       handler: (args: SubtitlesRequest) => Promise<SubtitlesResponse>
     ): void;
-    getInterface(): unknown;
+    getInterface(): AddonInterface;
+  }
+
+  export interface AddonInterface {
+    get: (path: string, handler: any) => void;
+    getRouter: () => any;
   }
 
   export function serveHTTP(
-    addonInterface: unknown,
+    addonInterface: AddonInterface,
     options: { port: number }
   ): void;
 }
