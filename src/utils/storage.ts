@@ -71,6 +71,13 @@ class SubtitleStorage {
       ids: Array.from(this.storage.keys())
     };
   }
+
+  /**
+   * Clear all stored subtitles (for debugging/testing)
+   */
+  clear(): void {
+    this.storage.clear();
+  }
 }
 
 export const subtitleStorage = new SubtitleStorage();

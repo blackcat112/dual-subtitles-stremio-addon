@@ -16,6 +16,13 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Clear cache endpoint (for debugging/testing)
+app.get('/clear-cache', (req, res) => {
+  subtitleStorage.clear();
+  logger.info('Cache cleared manually');
+  res.json({ status: 'cache cleared', timestamp: new Date().toISOString() });
+});
+
 // Serve subtitle files from storage
 app.get('/subtitle/:id', (req, res) => {
   const { id } = req.params;
