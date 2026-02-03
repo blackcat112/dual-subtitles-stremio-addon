@@ -3,7 +3,7 @@
 export interface SubtitleSearchParams {
   imdbId: string;
   language: string;
-  type: 'movie' | 'episode';
+  type: 'movie' | 'episode' | 'series';
   season?: number;
   episode?: number;
 }

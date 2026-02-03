@@ -41,8 +41,8 @@ class OpenSubtitlesClient {
         languages: language,
       };
 
-      // Add episode info if it's a series
-      if (type === 'episode' && season && episode) {
+      // Add episode info if it's a series or episode
+      if ((type === 'episode' || type === 'series') && season && episode) {
         queryParams.season_number = parseInt(season.toString(), 10);
         queryParams.episode_number = parseInt(episode.toString(), 10);
       }
@@ -82,7 +82,8 @@ class OpenSubtitlesClient {
         if (!sub.id) return false;
         
         // Strict filtering for episodes
-        if (type === 'episode' && season && episode) {
+        // Stremio sends type as 'series', so we must include it here
+        if ((type === 'episode' || type === 'series') && season && episode) {
           let detectedSeason = sub.season;
           let detectedEpisode = sub.episode;
 
