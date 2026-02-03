@@ -4,6 +4,7 @@ import { logger } from '../utils/logger';
 
 /**
  * Merge two SRT subtitle files into one dual-language subtitle
+ * Simplified algorithm for maximum player compatibility
  */
 export function mergeSubtitles(
   srt1Content: string,
@@ -19,56 +20,57 @@ export function mergeSubtitles(
   logger.debug(`Parsed ${entries1.length} entries from language 1`);
   logger.debug(`Parsed ${entries2.length} entries from language 2`);
   
+  if (entries1.length === 0 || entries2.length === 0) {
+    logger.warn('One or both subtitle files are empty');
+    return '';
+  }
+  
   // Apply offset if specified
   const offset = options.offset || 0;
-  const adjustedEntries2 = entries2.map(entry => ({
-    ...entry,
-    startTime: entry.startTime + offset,
-    endTime: entry.endTime + offset
-  }));
+  const adjustedEntries2 = offset !== 0 
+    ? entries2.map(entry => ({
+        ...entry,
+        startTime: entry.startTime + offset,
+        endTime: entry.endTime + offset
+      }))
+    : entries2;
   
-  // Merge entries by timestamp overlap
+  // Use simpler merge strategy: iterate through language 1 and find overlapping language 2
   const mergedEntries: SubtitleEntry[] = [];
-  const separator = options.separator || '\n';
+  const minDuration = 200; // Minimum 200ms duration to avoid ultra-short segments
   
-  // Create a union of all unique time ranges
-  const allTimes = new Set<number>();
-  entries1.forEach(e => {
-    allTimes.add(e.startTime);
-    allTimes.add(e.endTime);
-  });
-  adjustedEntries2.forEach(e => {
-    allTimes.add(e.startTime);
-    allTimes.add(e.endTime);
-  });
-  
-  const sortedTimes = Array.from(allTimes).sort((a, b) => a - b);
-  
-  // For each time segment, find matching subtitles
-  for (let i = 0; i < sortedTimes.length - 1; i++) {
-    const startTime = sortedTimes[i];
-    const endTime = sortedTimes[i + 1];
+  for (const sub1 of entries1) {
+    // Find overlapping subtitle in language 2
+    const sub2 = adjustedEntries2.find(s2 => 
+      // Check if there's any time overlap
+      (s2.startTime <= sub1.endTime && s2.endTime >= sub1.startTime)
+    );
     
-    // Find overlapping subtitles
-    const sub1 = entries1.find(e => e.startTime <= startTime && e.endTime >= endTime);
-    const sub2 = adjustedEntries2.find(e => e.startTime <= startTime && e.endTime >= endTime);
-    
-    if (sub1 || sub2) {
-      const text1 = sub1?.text || '';
-      const text2 = sub2?.text || '';
-      
-      // Combine texts based on top/bottom preference
-      const combinedText = text1 && text2
-        ? `${text1}${separator}${text2}`
-        : text1 || text2;
-      
-      mergedEntries.push({
-        index: mergedEntries.length + 1,
-        startTime,
-        endTime,
-        text: combinedText
-      });
+    // Skip if duration is too short
+    if (sub1.endTime - sub1.startTime < minDuration) {
+      continue;
     }
+    
+    // Clean and limit text to first line only (for simplicity)
+    const text1 = sub1.text.split('\n')[0].trim();
+    const text2 = sub2 ? sub2.text.split('\n')[0].trim() : '';
+    
+    // Skip if first language text is empty
+    if (!text1) {
+      continue;
+    }
+    
+    // Create merged entry with both languages
+    const combinedText = text2 
+      ? `${text1}\n${text2}` // Two lines: language 1, then language 2
+      : text1; // Only language 1 if no match
+    
+    mergedEntries.push({
+      index: mergedEntries.length + 1,
+      startTime: sub1.startTime,
+      endTime: sub1.endTime,
+      text: combinedText
+    });
   }
   
   logger.success(`Merged ${mergedEntries.length} subtitle entries`);
