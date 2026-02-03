@@ -5,6 +5,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![Phase](https://img.shields.io/badge/Phase-2%2F7%20Complete-success)](https://github.com/blackcat112/dual-subtitles-stremio-addon)
+
+**🚀 Development Status:** Phase 1 (Setup) ✅ | Phase 2 (API Integration) ✅ | Phase 3 (In Progress) 🔄
+
+**Repository:** [github.com/blackcat112/dual-subtitles-stremio-addon](https://github.com/blackcat112/dual-subtitles-stremio-addon)
 
 ---
 
@@ -143,23 +148,30 @@ npm start            # Start production server (requires build first)
 ### Development Status
 
 **✅ Phase 1: Setup and Configuration (COMPLETED)**
-- TypeScript project structure
-- Core modules and utilities
-- SRT parser and merger
-- Stremio addon skeleton
-- Local testing successful
+- ✅ TypeScript project structure
+- ✅ Core modules and utilities
+- ✅ SRT parser and merger
+- ✅ Stremio addon skeleton
+- ✅ Local testing successful
 
-**🔄 Phase 2: OpenSubtitles API Integration (IN PROGRESS)**
-- API client implementation
-- Subtitle search and download
-- Error handling and rate limits
+**✅ Phase 2: OpenSubtitles API Integration (COMPLETED)**
+- ✅ API client implementation
+- ✅ Subtitle search and download
+- ✅ Error handling and rate limits
+- ✅ In-memory caching system
+- ✅ Dual subtitle fetcher
+- ✅ Comprehensive testing
+
+**🔄 Phase 3: Stremio Integration (IN PROGRESS)**
+- [ ] Complete addon handler implementation
+- [ ] HTTP endpoint for merged subtitles
+- [ ] Full integration testing in Stremio
+- [ ] Subtitle synchronization validation
 
 **⏳ Upcoming Phases**:
-- Phase 3: Complete merger implementation
-- Phase 4: Full Stremio integration
-- Phase 5: User configuration features
-- Phase 6: Production deployment
-- Phase 7: Documentation and portfolio
+- Phase 4: User configuration features
+- Phase 5: Production deployment
+- Phase 6: Documentation and portfolio
 
 ---
 
