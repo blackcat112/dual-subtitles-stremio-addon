@@ -58,4 +58,6 @@ declare module 'stremio-addon-sdk' {
     addonInterface: AddonInterface,
     options: { port: number }
   ): void;
+
+  export function getRouter(addonInterface: AddonInterface): any;
 }

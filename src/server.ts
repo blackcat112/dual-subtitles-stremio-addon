@@ -1,4 +1,5 @@
 import express from 'express';
+import { getRouter } from 'stremio-addon-sdk';
 import addonInterface from './addon';
 import { config, validateConfig } from './config';
 import { logger } from './utils/logger';
@@ -36,8 +37,8 @@ app.get('/subtitle/:id', (req, res) => {
   logger.success(`Served subtitle: ${id} (${content.length} bytes)`);
 });
 
-// Mount Stremio addon routes
-app.use(addonInterface.getRouter());
+// Mount Stremio addon routes using SDK's getRouter
+app.use(getRouter(addonInterface));
 
 // Start server
 app.listen(config.port, () => {
@@ -46,6 +47,7 @@ app.listen(config.port, () => {
   logger.info(`📋 Manifest available at http://localhost:${config.port}/manifest.json`);
   logger.info(`🎬 Subtitles endpoint at http://localhost:${config.port}/subtitle/:id`);
   logger.info(`💡 To install in Stremio, use: http://localhost:${config.port}/manifest.json`);
+  logger.info('');
 
   // Log configuration status  
   if (config.opensubtitles.apiKey) {

@@ -15,7 +15,10 @@ const builder = new addonBuilder(manifest);
  * Docs: https://github.com/Stremio/stremio-addon-sdk/blob/master/docs/api/requests/defineSubtitlesHandler.md
  */
 builder.defineSubtitlesHandler(async ({ type, id }) => {
-  logger.info(`Subtitle request: type=${type}, id=${id}`);
+  logger.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+  logger.info(`📥 NEW SUBTITLE REQUEST`);
+  logger.info(`   Type: ${type}`);
+  logger.info(`   ID: ${id}`);
   
   try {
     // Parse the ID to extract IMDB ID and episode info
@@ -25,7 +28,8 @@ builder.defineSubtitlesHandler(async ({ type, id }) => {
     const season = seasonStr ? parseInt(seasonStr, 10) : undefined;
     const episode = episodeStr ? parseInt(episodeStr, 10) : undefined;
     
-    logger.debug(`Parsed: imdbId=${imdbId}, season=${season}, episode=${episode}`);
+    logger.info(`   Parsed - IMDB: ${imdbId}, Season: ${season || 'N/A'}, Episode: ${episode || 'N/A'}`);
+    logger.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
 
     // Get languages from config (later we'll make this configurable)
     const lang1 = config.defaultLanguages.primary;   // Spanish
