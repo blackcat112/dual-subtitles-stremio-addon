@@ -1,0 +1,40 @@
+{
+	"name": "dual-subtitles-stremio-addon",
+	"version": "1.0.0",
+	"description": "Learn languages with dual subtitles - display two subtitle languages simultaneously",
+	"main": "dist/server.js",
+	"scripts": {
+		"start": "node dist/server.js",
+		"dev": "ts-node src/server.ts",
+		"dev:launch": "ts-node src/server.ts -- --launch",
+		"build": "tsc",
+		"prebuild": "rm -rf dist",
+		"watch": "tsc --watch",
+		"lint": "tsc --noEmit",
+		"test:api": "ts-node src/test-api.ts"
+	},
+	"keywords": [
+		"stremio",
+		"addon",
+		"subtitles",
+		"language-learning",
+		"dual-subtitles"
+	],
+	"author": "Your Name",
+	"license": "MIT",
+	"dependencies": {
+		"axios": "^1.13.4",
+		"dotenv": "^17.2.3",
+		"srt-parser-2": "^1.2.3",
+		"stremio-addon-sdk": "1.1.x"
+	},
+	"devDependencies": {
+		"@types/express": "^5.0.6",
+		"@types/node": "^25.2.0",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.9.3"
+	},
+	"engines": {
+		"node": ">=18.0.0"
+	}
+}

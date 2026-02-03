@@ -1,0 +1,56 @@
+// Type definitions for stremio-addon-sdk
+// Since the official package doesn't include TypeScript definitions
+
+declare module 'stremio-addon-sdk' {
+  export interface Manifest {
+    id: string;
+    version: string;
+    name: string;
+    description: string;
+    resources: string[];
+    types: string[];
+    idPrefixes?: string[];
+    catalogs?: Catalog[];
+    logo?: string;
+    background?: string;
+    contactEmail?: string;
+    behaviorHints?: {
+      configurable?: boolean;
+      configurationRequired?: boolean;
+    };
+  }
+
+  export interface Catalog {
+    type: string;
+    id: string;
+    name?: string;
+  }
+
+  export interface SubtitlesRequest {
+    type: string;
+    id: string;
+  }
+
+  export interface Subtitle {
+    id: string;
+    lang: string;
+    url: string;
+  }
+
+  export interface SubtitlesResponse {
+    subtitles: Subtitle[];
+  }
+
+  export class addonBuilder {
+    constructor(manifest: Manifest);
+    defineSubtitlesHandler(
+      handler: (args: SubtitlesRequest) => Promise<SubtitlesResponse>
+    ): void;
+    getInterface(): unknown;
+  }
+
+  export function serveHTTP(
+    addonInterface: unknown,
+    options: { port: number }
+  ): void;
+}
