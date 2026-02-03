@@ -29,16 +29,16 @@ app.get('/subtitle/:id', (req, res) => {
     return;
   }
   
-  // Set headers for SRT file with CORS support and proper MIME type
+  // Set headers optimized for Stremio subtitle players
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Content-Type', 'application/x-subrip; charset=utf-8');
-  res.setHeader('Content-Disposition', `inline; filename="${id}"`);
-  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Content-Disposition', 'inline');
+  res.setHeader('Cache-Control', 'no-cache');
   
-  // Send content with explicit UTF-8 encoding
-  res.send(Buffer.from(content, 'utf-8'));
+  // Send as plain text with explicit UTF-8 (no BOM)
+  res.status(200).send(content);
   
   logger.success(`Served subtitle: ${id} (${content.length} bytes)`);
 });
