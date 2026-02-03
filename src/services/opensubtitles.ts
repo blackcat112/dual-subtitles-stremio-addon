@@ -120,7 +120,7 @@ class OpenSubtitlesClient {
 
           // Ultra-strict mode (Re-verified)
           if (detectedSeason === undefined && detectedEpisode === undefined) {
-             logger.debug(`${logPrefix} REJECT: Undefined season/episode (Strict Mode)`);
+             logger.debug(`${logPrefix} REJECT: Undefined season/episode (Strict Mode v2)`);
              return false;
           }
           
