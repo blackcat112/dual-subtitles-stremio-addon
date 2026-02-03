@@ -73,11 +73,31 @@ class OpenSubtitlesClient {
           downloadUrl: '', // Will be obtained in download step
           fileName: file?.file_name || 'subtitle.srt',
           downloads: item.attributes?.download_count || 0,
-          rating: item.attributes?.ratings || 0
+          rating: item.attributes?.ratings || 0,
+          // Extract metadata for filtering
+          season: item.attributes?.feature_details?.season_number,
+          episode: item.attributes?.feature_details?.episode_number
         };
-      }).filter((sub: SubtitleResult) => sub.id); // Filter out invalid entries
+      }).filter((sub: any) => {
+        if (!sub.id) return false;
+        
+        // Strict filtering for episodes
+        if (type === 'episode' && season && episode) {
+          // If metadata is present, check it
+          if (sub.season !== undefined && sub.season !== null && sub.season !== 0) {
+             if (sub.season !== season) return false;
+          }
+          if (sub.episode !== undefined && sub.episode !== null && sub.episode !== 0) {
+             if (sub.episode !== episode) return false;
+          }
+        }
+        return true;
+      });
 
       logger.success(`Found ${subtitles.length} subtitles for ${imdbId}`);
+      if (subtitles.length > 0) {
+        logger.info(`Top result: ${subtitles[0].fileName} (Season: ${(subtitles[0] as any).season}, Episode: ${(subtitles[0] as any).episode})`);
+      }
       return subtitles;
 
     } catch (error) {

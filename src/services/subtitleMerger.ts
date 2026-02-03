@@ -69,11 +69,11 @@ export function mergeSubtitles(
     // Construct merged text
     // Format:
     // Text 1
-    // <font color="#ffff00">Text 2</font>
+    // {\c&H00FFFF&}Text 2 (Yellow in ASS/SSA format BGR)
     let combinedText = text1;
     if (text2) {
       if (combinedText) combinedText += '\n';
-      combinedText += `<font color="#ffff00">${text2}</font>`;
+      combinedText += `{\\c&H00FFFF&}${text2}`;
     }
     
     // Optimization: Merge with previous entry if text is identical
