@@ -77,6 +77,6 @@ export function serializeSRT(entries: SubtitleEntry[]): string {
     const startTimestamp = millisecondsToTimestamp(entry.startTime);
     const endTimestamp = millisecondsToTimestamp(entry.endTime);
     
-    return `${index}\n${startTimestamp} --> ${endTimestamp}\n${entry.text}\n`;
-  }).join('\n');
+    return `${index}\n${startTimestamp} --> ${endTimestamp}\n${entry.text}`;
+  }).join('\n\n') + '\n'; // Double newline between blocks, single at end
 }
