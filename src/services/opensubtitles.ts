@@ -54,7 +54,8 @@ class OpenSubtitlesClient {
         headers: {
           'Api-Key': this.apiKey,
           'User-Agent': this.userAgent,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         timeout: 10000
       });
@@ -116,7 +117,8 @@ class OpenSubtitlesClient {
           headers: {
             'Api-Key': this.apiKey,
             'User-Agent': this.userAgent,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           },
           timeout: 10000
         }

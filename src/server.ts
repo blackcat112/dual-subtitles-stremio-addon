@@ -29,9 +29,13 @@ app.get('/subtitle/:id', (req, res) => {
     return;
   }
   
-  // Set headers for SRT file
+  // Set headers for SRT file with CORS support
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-  res.setHeader('Content-Disposition', `inline; filename="${id}"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${id}"`);
+  res.setHeader('Cache-Control', 'public, max-age=3600');
   res.send(content);
   
   logger.success(`Served subtitle: ${id} (${content.length} bytes)`);
