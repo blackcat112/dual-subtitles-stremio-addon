@@ -21,13 +21,37 @@ This addon solves that problem by fetching subtitles from OpenSubtitles and merg
 
 ---
 
+> [!IMPORTANT]
+> **Demo/Portfolio Project:** This addon uses OpenSubtitles.com free tier API (5 downloads/day limit). It's designed as a **proof of concept** and portfolio piece. For production use with multiple users, a paid API plan would be required.
+
+---
+
 ## ✨ Features
 
-- ✅ **Dual Subtitles**: Display two subtitle languages simultaneously
-- ✅ **Multiple Language Pairs**: ES+FR, ES+EN, EN+FR, and more
-- ✅ **Automatic Synchronization**: Aligns subtitles by timestamps
-- ✅ **Movies & Series Support**: Works with both content types
-- ✅ **IMDB Integration**: Uses IMDB IDs for reliable matching
+- **Dual Language Learning**: Display two subtitle languages simultaneously (e.g., Spanish + French)
+- **Automatic Subtitle Fetching**: Retrieves subtitles from OpenSubtitles API
+- **Smart Merging**: Combines two SRT files with synchronized timestamps
+- **Intelligent Caching**: 24-hour cache reduces API calls and improves performance
+- **Support for Movies & Series**: Works with both IMDB movies and TV show episodes
+- **Easy Installation**: Simple manifest URL installation in Stremio
+
+## ⚠️ Current Limitations
+
+**OpenSubtitles Free Tier:**
+- **5 downloads per day** (resets every 24 hours)
+- **2 downloads per content** (one per language)
+- **~2-3 different movies/episodes testable per day**
+
+**Cache system mitigates this:**
+- First viewing: 2 downloads (ES + FR)
+- Repeat viewings (24h): 0 downloads (served from cache)
+- Popular content benefits most (multiple users share cache)
+
+**For portfolio demonstrations:** The free tier is sufficient for showcasing functionality to recruiters and peers.
+
+**For production use:** Upgrade to OpenSubtitles paid plan:
+- **Light Plan:** $20/month, 2,000 downloads/day (~1,000 contents)
+- See: https://www.opensubtitles.com/en/consumers/apikeyable matching
 - 🔄 **Phase 2+**: User configuration, offset adjustment, caching (coming soon)
 
 ---
