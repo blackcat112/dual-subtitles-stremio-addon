@@ -83,20 +83,30 @@ class OpenSubtitlesClient {
         
         // Strict filtering for episodes
         if (type === 'episode' && season && episode) {
-          // If metadata is present, check it
-          if (sub.season !== undefined && sub.season !== null && sub.season !== 0) {
-             if (sub.season !== season) return false;
+          // Check Season
+          if (sub.season !== undefined && sub.season !== null) {
+             if (Number(sub.season) !== Number(season)) {
+               logger.debug(`Filtering out ${sub.fileName}: Season mismatch (${sub.season} vs ${season})`);
+               return false;
+             }
           }
-          if (sub.episode !== undefined && sub.episode !== null && sub.episode !== 0) {
-             if (sub.episode !== episode) return false;
+          
+          // Check Episode
+          if (sub.episode !== undefined && sub.episode !== null) {
+             if (Number(sub.episode) !== Number(episode)) {
+               logger.debug(`Filtering out ${sub.fileName}: Episode mismatch (${sub.episode} vs ${episode})`);
+               return false;
+             }
           }
         }
         return true;
       });
 
-      logger.success(`Found ${subtitles.length} subtitles for ${imdbId}`);
+      logger.success(`Found ${subtitles.length} subtitles for ${imdbId} after filtering`);
       if (subtitles.length > 0) {
         logger.info(`Top result: ${subtitles[0].fileName} (Season: ${(subtitles[0] as any).season}, Episode: ${(subtitles[0] as any).episode})`);
+      } else {
+        logger.warn(`No subtitles matched strict criteria for S${season}E${episode}`);
       }
       return subtitles;
 
