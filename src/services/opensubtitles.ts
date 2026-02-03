@@ -120,10 +120,11 @@ class OpenSubtitlesClient {
           }
 
           // Ultra-strict mode: If we couldn't detect ANY episode info from metadata OR filename,
-          // and we specifically asked for an episode, we might want to be careful.
-          // For now, we'll allow it but log a warning, as some valid subs might have weird names.
+          // and we specifically asked for an episode, REJECT IT.
+          // This prevents "redirector" or ambiguous files from being selected when we want strict matching.
           if (detectedSeason === undefined && detectedEpisode === undefined) {
-             logger.debug(`Warning: Could not verify episode info for ${sub.fileName}, letting it pass but it might be wrong.`);
+             logger.debug(`Filtering out ${sub.fileName}: Could not verify episode info (Strict Mode)`);
+             return false;
           }
         }
         return true;
