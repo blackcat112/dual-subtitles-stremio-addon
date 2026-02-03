@@ -87,7 +87,6 @@ class OpenSubtitlesClient {
           let detectedEpisode = sub.episode;
 
           // Fallback: Try to parse from filename if metadata is missing or incomplete
-          // Supports formats: S01E01, s1e1, 1x01, 1x1
           if ((detectedSeason === undefined || detectedEpisode === undefined) && sub.fileName) {
              const sxxExxMatch = sub.fileName.match(/[sS](\d{1,2})[eE](\d{1,2})/);
              const xFormatMatch = sub.fileName.match(/(\d{1,2})x(\d{1,2})/);
@@ -95,18 +94,18 @@ class OpenSubtitlesClient {
              if (sxxExxMatch) {
                 detectedSeason = parseInt(sxxExxMatch[1], 10);
                 detectedEpisode = parseInt(sxxExxMatch[2], 10);
-                logger.debug(`Parsed S${detectedSeason}E${detectedEpisode} from filename: ${sub.fileName}`);
              } else if (xFormatMatch) {
                 detectedSeason = parseInt(xFormatMatch[1], 10);
                 detectedEpisode = parseInt(xFormatMatch[2], 10);
-                logger.debug(`Parsed ${detectedSeason}x${detectedEpisode} from filename: ${sub.fileName}`);
              }
           }
+
+          const logPrefix = `[Filter ${sub.fileName.substring(0, 20)}...]`;
 
           // Check Season
           if (detectedSeason !== undefined && detectedSeason !== null) {
              if (Number(detectedSeason) !== Number(season)) {
-               logger.debug(`Filtering out ${sub.fileName}: Season mismatch (${detectedSeason} vs ${season})`);
+               logger.debug(`${logPrefix} REJECT: Season mismatch (Found: ${detectedSeason}, Wanted: ${season})`);
                return false;
              }
           }
@@ -114,18 +113,18 @@ class OpenSubtitlesClient {
           // Check Episode
           if (detectedEpisode !== undefined && detectedEpisode !== null) {
              if (Number(detectedEpisode) !== Number(episode)) {
-               logger.debug(`Filtering out ${sub.fileName}: Episode mismatch (${detectedEpisode} vs ${episode})`);
+               logger.debug(`${logPrefix} REJECT: Episode mismatch (Found: ${detectedEpisode}, Wanted: ${episode})`);
                return false;
              }
           }
 
-          // Ultra-strict mode: If we couldn't detect ANY episode info from metadata OR filename,
-          // and we specifically asked for an episode, REJECT IT.
-          // This prevents "redirector" or ambiguous files from being selected when we want strict matching.
+          // Ultra-strict mode (Re-verified)
           if (detectedSeason === undefined && detectedEpisode === undefined) {
-             logger.debug(`Filtering out ${sub.fileName}: Could not verify episode info (Strict Mode)`);
+             logger.debug(`${logPrefix} REJECT: Undefined season/episode (Strict Mode)`);
              return false;
           }
+          
+          logger.debug(`${logPrefix} ACCEPT: Matches S${detectedSeason}E${detectedEpisode}`);
         }
         return true;
       });
