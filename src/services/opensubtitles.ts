@@ -82,7 +82,9 @@ class OpenSubtitlesClient {
         if (!sub.id) return false;
         
         // Strict filtering for episodes
-        if (type === 'episode' && season && episode) {
+        // Stremio sends type as 'series' or 'movie', but sometimes we treat it as 'episode' internally
+        // We should filter if we have season and episode, regardless of type label, but let's be safe.
+        if ((type === 'episode' || type === 'series') && season && episode) {
           let detectedSeason = sub.season;
           let detectedEpisode = sub.episode;
 
