@@ -241,21 +241,27 @@ export async function fetchAndTranslateSubtitle(
     const textsToTranslate = entries.map(e => cleanForTranslation(e.text));
 
     // 4. Translate Batch
-    const translatedTexts = await translator.translateBatch(textsToTranslate, sourceLang, targetLang);
+    const { translated, errorCount } = await translator.translateBatch(textsToTranslate, sourceLang, targetLang);
 
     // 5. Reconstruct Target SRT
     // We map the translated text back to the original timestamps
     const translatedEntries = entries.map((entry, index) => ({
       ...entry,
-      text: translatedTexts[index] || '' // Fallback to empty if translation missing
+      text: translated[index] || '' // Fallback to empty if translation missing
     }));
 
     const translatedSrt = serializeSRT(translatedEntries);
 
-    // 6. Cache the Result!
+    // 6. Cache the Result (ONLY if translation was successful)
+    // If we had errors, we rely on the fallback (original text), 
+    // but we SHOULD NOT cache it, so the user can try again later for a proper translation.
     if (translatedSrt && allowCache) {
-       subtitleCache.set(imdbId, cacheLangKey, translatedSrt, season, episode);
-       logger.info(`💾 Cached translated subtitle: ${cacheLangKey}`);
+       if (errorCount === 0) {
+         subtitleCache.set(imdbId, cacheLangKey, translatedSrt, season, episode);
+         logger.info(`💾 Cached translated subtitle: ${cacheLangKey}`);
+       } else {
+         logger.warn(`⚠️ cache skipped for ${cacheLangKey} due to ${errorCount} translation errors`);
+       }
     }
 
     logger.success(`✅ Generated translated subtitle (${targetLang}) from source (${sourceLang})`);

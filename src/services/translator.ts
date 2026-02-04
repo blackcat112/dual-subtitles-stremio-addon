@@ -44,67 +44,54 @@ export class TranslatorService {
    * Translate an array of subtitle lines efficiently using Native Batching
    * We pass the array DIRECTLY to the library, which sends fewer HTTP requests.
    */
-  async translateBatch(texts: string[], from: string, to: string): Promise<string[]> {
+  async translateBatch(texts: string[], from: string, to: string): Promise<{ translated: string[], errorCount: number }> {
     logger.info(`Translating ${texts.length} lines from ${from} to ${to} (Native Batching)`);
     
-    // We send chunks of simple text. 
-    // The library handles array inputs: translate([t1, t2], ...).
-    const MAX_CHUNK_SIZE = 50; // Google batch endpoint can handle ~50-100 items usually
+    // Low batch size and high delay to be extremely safe with free API
+    const MAX_CHUNK_SIZE = 3; 
     const results: string[] = new Array(texts.length).fill('');
+    let errorCount = 0;
     
     // Helper to retry chunks
-    const processChunk = async (chunk: string[], indices: number[], retries = 3): Promise<void> => {
+    const processChunk = async (chunk: string[], indices: number[], retries = 5): Promise<void> => {
       try {
-        // Filter out things that don't need translation to save payload size
-        // But we need to maintain index alignment.
-        // The library returns an array of results matching the input array length.
-        
         let hasContent = false;
         const cleanChunk = chunk.map(text => {
            if (text.trim() && !/^\d+$/.test(text.trim())) {
              hasContent = true;
              return text;
            }
-           return ''; // Placeholder for empty/numeric lines we don't want to translate
+           return ''; 
         });
 
         if (!hasContent) {
-           // If chunk is all numbers/empty, just copy original
            chunk.forEach((txt, i) => { results[indices[i]] = txt; });
            return;
         }
 
-        // Native Array Call
-        // Note: The library returns { text: string } | { text: string }[] (if input is array)
-        // actually for array input it returns an object with text as string (joined) or array?
-        // Let's verify standard behavior: usually it returns an array of objects.
-        const res = await translate(chunk, { from, to }) as any;
+        const res = await translate(cleanChunk, { from, to, forceBatch: false }) as any;
         
-        // Map results back
         if (Array.isArray(res)) {
            res.forEach((r: any, i) => {
              results[indices[i]] = r.text;
-             // Cache individual results
              const key = `${from}:${to}:${chunk[i]}`;
              this.cache.set(key, r.text);
            });
         } else if (res && res.text) {
-           // Single result fallback (shouldn't happen with array input but safety first)
            results[indices[0]] = res.text;
         }
 
       } catch (err: any) {
         if (retries > 0 && err?.response?.status === 429) {
-           const delay = 2000 + (Math.random() * 1000);
+           const delay = 3000 + (Math.random() * 2000); // 3-5s wait
            logger.warn(`⚠️ Batch 429. Retrying in ${Math.round(delay)}ms...`);
            await new Promise(r => setTimeout(r, delay));
            return processChunk(chunk, indices, retries - 1);
         }
         
-        // Critical Failure for this chunk
         logger.error(`Chunk failed permanently: ${err.message}`);
-        // Fallback to original text
         chunk.forEach((txt, i) => { results[indices[i]] = txt; });
+        errorCount++;
       }
     };
 
@@ -115,15 +102,15 @@ export class TranslatorService {
       
       await processChunk(chunk, indices);
       
-      // Small delay between HTTP requests to be polite
-      await new Promise(r => setTimeout(r, 300));
+      // Significant delay between HTTP requests
+      await new Promise(r => setTimeout(r, 400));
       
-      if ((i + MAX_CHUNK_SIZE) % 200 === 0) {
+      if ((i + MAX_CHUNK_SIZE) % 50 === 0) {
         logger.debug(`Processed ${Math.min(i + MAX_CHUNK_SIZE, texts.length)}/${texts.length} lines`);
       }
     }
     
-    return results;
+    return { translated: results, errorCount };
   }
 }
 
