@@ -9,7 +9,7 @@ const builder = new addonBuilder(manifest);
  * Subtitles handler
  * Docs: https://github.com/Stremio/stremio-addon-sdk/blob/master/docs/api/requests/defineSubtitlesHandler.md
  */
-builder.defineSubtitlesHandler(async (args) => {
+builder.defineSubtitlesHandler(async (args: any) => {
   const { type, id, extra } = args;
   // Stremio ID format: "tt1234567" (movie) or "tt1234567:1:1" (series)
   const [imdbId, seasonStr, episodeStr] = id.split(':');

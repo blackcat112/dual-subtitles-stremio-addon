@@ -32,22 +32,21 @@ app.get('/configure', (req, res) => {
 });
 
 // Dynamic Subtitle Merge Endpoint
-// This is triggered ONLY when the user actually selects a subtitle in Stremio
-app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2', async (req, res) => {
-  const { imdbId, season, episode, lang1, lang2 } = req.params;
+// Updated to accept optional videoHash for perfect sync
+app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2/:videoHash?', async (req, res) => {
+  const { imdbId, season, episode, lang1, lang2, videoHash } = req.params;
   
-  logger.info(`🚨 ON-DEMAND REQUEST: ${imdbId} S${season}E${episode} [${lang1}+${lang2}]`);
+  const hashLog = videoHash && videoHash !== 'nohash' ? ` (#${videoHash.substring(0,8)})` : '';
+  logger.info(`🚨 ON-DEMAND REQUEST: ${imdbId} S${season}E${episode} [${lang1}+${lang2}]${hashLog}`);
 
   try {
     const s = parseInt(season);
     const e = parseInt(episode);
     
     // Determine type (if it has S/E it's likely a series, but we can infer)
-    // For Stremio, usually if season/episode are present it's a series.
-    const type = (season && episode && season !== '0') ? 'episode' : 'movie'; // Rough inference
+    const type = (season && episode && season !== '0') ? 'episode' : 'movie'; 
 
     // Fetch and Merge on the fly
-    // Note: We need to import fetchDualSubtitles and mergeSubtitles
     const { fetchDualSubtitles } = require('./services/subtitleFetcher');
     const { mergeSubtitles } = require('./services/subtitleMerger');
 
@@ -57,7 +56,8 @@ app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2', async (req, res) => 
       lang1,
       lang2,
       s,
-      e
+      e,
+      (videoHash !== 'nohash') ? videoHash : undefined
     );
 
     if (!srt1 && !srt2) {
