@@ -41,73 +41,54 @@ export class TranslatorService {
   }
 
   /**
-   * Translate an array of subtitle lines efficiently using Native Batching
-   * We pass the array DIRECTLY to the library, which sends fewer HTTP requests.
+   * Translate an array of subtitle lines using Sequential robust calls
+   * Native Batching (RPC) failed due to 429. processing line-by-line is slower but safer.
    */
   async translateBatch(texts: string[], from: string, to: string): Promise<{ translated: string[], errorCount: number }> {
-    logger.info(`Translating ${texts.length} lines from ${from} to ${to} (Native Batching)`);
+    logger.info(`Translating ${texts.length} lines from ${from} to ${to} (Sequential Mode)`);
     
-    // Low batch size and high delay to be extremely safe with free API
-    const MAX_CHUNK_SIZE = 3; 
+    // We process in small "concurrent" chunks effectively acting as a small batch 
+    // but using individual web requests which might be less suspicious than the batch RPC
+    const CONCURRENCY = 2; 
+    const DELAY_BETWEEN_ITEMS = 300; // ms
+    
     const results: string[] = new Array(texts.length).fill('');
     let errorCount = 0;
     
-    // Helper to retry chunks
-    const processChunk = async (chunk: string[], indices: number[], retries = 5): Promise<void> => {
+    const processItem = async (text: string, index: number, retries = 3): Promise<void> => {
+      // Skip empty/numbers
+      if (!text.trim() || /^\d+$/.test(text.trim())) {
+        results[index] = text;
+        return;
+      }
+
       try {
-        let hasContent = false;
-        const cleanChunk = chunk.map(text => {
-           if (text.trim() && !/^\d+$/.test(text.trim())) {
-             hasContent = true;
-             return text;
-           }
-           return ''; 
-        });
-
-        if (!hasContent) {
-           chunk.forEach((txt, i) => { results[indices[i]] = txt; });
-           return;
-        }
-
-        const res = await translate(cleanChunk, { from, to, forceBatch: false }) as any;
-        
-        if (Array.isArray(res)) {
-           res.forEach((r: any, i) => {
-             results[indices[i]] = r.text;
-             const key = `${from}:${to}:${chunk[i]}`;
-             this.cache.set(key, r.text);
-           });
-        } else if (res && res.text) {
-           results[indices[0]] = res.text;
-        }
-
+        const translated = await this.translateText(text, from, to);
+        results[index] = translated;
       } catch (err: any) {
-        if (retries > 0 && err?.response?.status === 429) {
-           const delay = 3000 + (Math.random() * 2000); // 3-5s wait
-           logger.warn(`⚠️ Batch 429. Retrying in ${Math.round(delay)}ms...`);
+        if (retries > 0) {
+           // Exponential backoff
+           const delay = 1000 * (4 - retries); 
            await new Promise(r => setTimeout(r, delay));
-           return processChunk(chunk, indices, retries - 1);
+           return processItem(text, index, retries - 1);
         }
-        
-        logger.error(`Chunk failed permanently: ${err.message}`);
-        chunk.forEach((txt, i) => { results[indices[i]] = txt; });
+        logger.warn(`Failed line ${index}: ${text.substring(0, 15)}...`);
+        results[index] = text; // Fallback
         errorCount++;
       }
     };
 
-    // Create chunks
-    for (let i = 0; i < texts.length; i += MAX_CHUNK_SIZE) {
-      const chunk = texts.slice(i, i + MAX_CHUNK_SIZE);
-      const indices = chunk.map((_, idx) => i + idx);
+    // Process loop
+    for (let i = 0; i < texts.length; i += CONCURRENCY) {
+      const batch = texts.slice(i, i + CONCURRENCY);
+      const promises = batch.map((text, idx) => processItem(text, i + idx));
       
-      await processChunk(chunk, indices);
+      await Promise.all(promises);
       
-      // Significant delay between HTTP requests
-      await new Promise(r => setTimeout(r, 400));
+      // Delay to respect rate limits
+      await new Promise(r => setTimeout(r, DELAY_BETWEEN_ITEMS));
       
-      if ((i + MAX_CHUNK_SIZE) % 50 === 0) {
-        logger.debug(`Processed ${Math.min(i + MAX_CHUNK_SIZE, texts.length)}/${texts.length} lines`);
-      }
+      if (i % 50 === 0) logger.debug(`Progress: ${i}/${texts.length}`);
     }
     
     return { translated: results, errorCount };
