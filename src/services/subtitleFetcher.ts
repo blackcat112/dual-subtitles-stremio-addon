@@ -122,12 +122,14 @@ export async function fetchDualSubtitles(
   lang1: string,
   lang2: string,
   season?: number,
-  episode?: number
+  episode?: number,
+  moviehash?: string
 ): Promise<[string | null, string | null]> {
   logger.info(`Fetching dual subtitles: ${lang1} + ${lang2} for ${imdbId} (Smart Sync)`);
+  if (moviehash) logger.info(`  #️⃣  Using VideoHash: ${moviehash}`);
 
-  const params1_base = { imdbId, language: lang1, type: type as any, season, episode };
-  const params2_base = { imdbId, language: lang2, type: type as any, season, episode };
+  const params1_base = { imdbId, language: lang1, type: type as any, season, episode, moviehash };
+  const params2_base = { imdbId, language: lang2, type: type as any, season, episode, moviehash };
 
   const [results1, results2] = await Promise.all([
     openSubtitlesClient.searchSubtitles(params1_base),
