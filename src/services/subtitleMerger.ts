@@ -158,5 +158,11 @@ export function mergeSubtitles(
   
   logger.success(`Merged ${finalEntries.length} subtitle entries (Master-Slave Strategy)`);
   
-  return serializeSRT(finalEntries);
+  const finalSrt = serializeSRT(finalEntries);
+  
+  // DEBUG: Show preview of the result to verify format
+  const preview = finalSrt.split('\n').slice(0, 20).join('\n');
+  logger.info(`\n🔍 PREVIEW OF MERGED SUBTITLE:\n${preview}\n...`);
+
+  return finalSrt;
 }
