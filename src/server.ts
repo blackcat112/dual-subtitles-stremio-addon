@@ -34,7 +34,7 @@ app.get('/configure', (req, res) => {
 // Dynamic Subtitle Merge Endpoint
 // Updated to accept optional videoHash for perfect sync
 app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2/:videoHash?', async (req, res) => {
-  const { imdbId, season, episode, lang1, lang2, videoHash } = req.params;
+  const { imdbId, season, episode, lang1, lang2, videoHash } = req.params as any;
   
   const hashLog = videoHash && videoHash !== 'nohash' ? ` (#${videoHash.substring(0,8)})` : '';
   logger.info(`🚨 ON-DEMAND REQUEST: ${imdbId} S${season}E${episode} [${lang1}+${lang2}]${hashLog}`);
