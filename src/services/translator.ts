@@ -53,7 +53,8 @@ export class TranslatorService {
     // "google-translate-api-x" requests are independent HTTP calls.
     
     const results: string[] = [];
-    const BATCH_SIZE = 5; // Conservative batch for concurrency
+    const BATCH_SIZE = 50; // Increased from 5 to 50 for speed (Web API handles this fine usually)
+    const CONCURRENCY_DELAY = 10; // 10ms minimal delay just to yield event loop
     
     for (let i = 0; i < texts.length; i += BATCH_SIZE) {
       const chunk = texts.slice(i, i + BATCH_SIZE);
@@ -62,9 +63,8 @@ export class TranslatorService {
         // Skip empty or simple numbers/symbols to save API calls
         if (!text.trim() || /^\d+$/.test(text.trim())) return text;
         
-        // Add random delay to prevent burst detection (100ms - 500ms)
-        const delay = Math.floor(Math.random() * 400) + 100;
-        await new Promise(r => setTimeout(r, delay));
+        // Minimal delay to prevent immediate blocking, but fast enough for subtitles
+        await new Promise(r => setTimeout(r, Math.random() * CONCURRENCY_DELAY));
         
         return this.translateText(text, from, to);
       });
@@ -73,7 +73,7 @@ export class TranslatorService {
       results.push(...chunkResults);
       
       // Log progress periodically
-      if ((i + BATCH_SIZE) % 50 === 0) {
+      if ((i + BATCH_SIZE) % 200 === 0) {
         logger.debug(`Translated ${results.length}/${texts.length} lines...`);
       }
     }
