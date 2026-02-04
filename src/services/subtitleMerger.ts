@@ -35,96 +35,98 @@ export function mergeSubtitles(
   // Master-Slave Strategy:
   // Use entries1 (Top Language) as the "Master" for timing.
   // It provides the "professional" rhythm requested by the user.
-  // Utility to clean text but preserve full width (User preference)
-  const cleanText = (text: string, isSecondary: boolean): string => {
+  // Utility to clean text so we can split lines cleanly
+  // Styling is applied LATER during the merge to avoid breaking tags
+  const cleanRawText = (text: string): string => {
     if (!text) return '';
-    let clean = text
+    return text
       .replace(/<[^>]*>/g, '') 
       .replace(/\{[^}]*\}/g, '')
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
       .trim();
-    
-    // Flatten to single line for better flow? 
-    // User said "me da igual que se vea ancho".
-    // Let's replace internal newlines with spaces to avoid weird multi-stacking
-    // clean = clean.replace(/\n/g, ' '); 
-    // Actually standard SRTs usually have max 2 lines. Let's keep original line breaks if they exist, 
-    // but maybe ensure max 2 lines? 
-    // Let's just strip excessive whitespace.
-    
-    clean = clean.replace(/\n+/g, '\n').trim();
-
-    if (isSecondary) {
-       return `<i>${clean}</i>`;
-    }
-    return clean;
   };
 
   const processedEntries: SubtitleEntry[] = [];
-  const usedIndices2 = new Set<number>(); // Track indices used in merging
+  const usedIndices2 = new Set<number>();
 
   // 1. Process Master Entries (entries1)
   for (const entry1 of entries1) {
     const start1 = entry1.startTime;
     const end1 = entry1.endTime;
-    const text1 = cleanText(entry1.text, false);
+    const rawText1 = cleanRawText(entry1.text);
 
-    if (!text1) continue;
+    if (!rawText1) continue;
 
-    // Find overlapping entries in entries2 that haven't been fully consumed yet
-    // Strict Consumption Rule: 
-    // If we use an entry here, we mark it used.
-    // However, if a slave entry overlaps TWO masters slightly, we might want to prioritize the best overlap?
-    // Using simple "First Match wins" avoids repetition.
-    
     const overlapping = adjustedEntries2.filter((entry2, index) => {
-      // Logic: Overlap exists AND not already used
+      // Strict Consumption
       if (usedIndices2.has(index)) return false;
-
       const isOverlapping = (entry1.startTime < entry2.endTime - 50) && (entry1.endTime > entry2.startTime + 50);
       return isOverlapping;
     });
 
-    let text2 = '';
+    let rawText2 = '';
     if (overlapping.length > 0) {
-      // Use the overlapping entries
-      text2 = overlapping.map(e => cleanText(e.text, true)).join(' ');
+      // Join overlapping texts (space separated for flow, then we split lines)
+      // Actually standardizing on single block merging for best matching
+      rawText2 = overlapping.map(e => cleanRawText(e.text)).join(' ');
       
-      // Mark them as used so they don't appear in the NEXT master entry
-      // This fixes: "sale una frase y luego sale otra vez"
       overlapping.forEach(e => {
-        // Find the original index to mark as used
         const originalIdx = adjustedEntries2.indexOf(e);
         if (originalIdx !== -1) usedIndices2.add(originalIdx);
       });
     }
 
-    let combinedText = text1;
-    if (text2) {
-      // User specific request: "vuelve a poner dos saltos de linea"
-      combinedText += '\n' + text2;
+    // --- Side-by-Side Merge Logic ---
+    const lines1 = rawText1.split('\n');
+    const lines2 = rawText2 ? rawText2.split('\n') : [];
+    
+    const maxLines = Math.max(lines1.length, lines2.length);
+    const combinedLines: string[] = [];
+
+    for (let i = 0; i < maxLines; i++) {
+        const seg1 = lines1[i] || ''; // Primary (Left)
+        // Secondary (Right) - Apply Italics here
+        const rawSeg2 = lines2[i] || '';
+        const seg2 = rawSeg2 ? `<i>${rawSeg2}</i>` : ''; 
+        
+        if (seg1 && seg2) {
+            // Both exist: Join with separator
+            combinedLines.push(`${seg1}   |   ${seg2}`);
+        } else if (seg1) {
+            // Only Left
+            combinedLines.push(`${seg1}`);
+        } else if (seg2) {
+            // Only Right (indented for alignment visual cue?)
+            // Just putting it might look weird if left is empty. 
+            // Let's assume user wants to see it even if alone.
+            combinedLines.push(`        |   ${seg2}`); 
+        }
     }
 
     processedEntries.push({
       index: 0,
       startTime: start1,
       endTime: end1,
-      text: combinedText
+      text: combinedLines.join('\n')
     });
   }
 
   // 2. Add Orphan Entries from entries2
-  // Only add if NOT used in master merge
   adjustedEntries2.forEach((entry2, index) => {
     if (!usedIndices2.has(index)) {
-      const pText2 = cleanText(entry2.text, true);
-      if (pText2) {
+      const rawText2 = cleanRawText(entry2.text);
+      if (rawText2) {
+        // Orphans: Just show them centered/normal or side?
+        // Let's put them on the right side logic to be consistent
+        const lines = rawText2.split('\n');
+        const formatted = lines.map(line => `        |   <i>${line}</i>`).join('\n');
+        
         processedEntries.push({
           index: 0,
           startTime: entry2.startTime,
           endTime: entry2.endTime,
-          text: pText2
+          text: formatted
         });
       }
     }
