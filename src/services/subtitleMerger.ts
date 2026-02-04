@@ -46,6 +46,9 @@ export function mergeSubtitles(
       .replace(/\r/g, '\n')
       .trim();
   };
+  
+  // Target width for the left column to ensure alignment
+  const COL_WIDTH = 60;
 
   const processedEntries: SubtitleEntry[] = [];
   const usedIndices2 = new Set<number>();
@@ -80,10 +83,6 @@ export function mergeSubtitles(
     // --- Side-by-Side Merge Logic ---
     const lines1 = rawText1.split('\n');
     const lines2 = rawText2 ? rawText2.split('\n') : [];
-    
-    // Target width for the left column to ensure alignment
-    // 60 chars is a reasonable "max width" for a wide line on TV
-    const COL_WIDTH = 60; 
 
     const maxLines = Math.max(lines1.length, lines2.length);
     const combinedLines: string[] = [];
