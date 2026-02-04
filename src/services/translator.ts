@@ -53,27 +53,53 @@ export class TranslatorService {
     // "google-translate-api-x" requests are independent HTTP calls.
     
     const results: string[] = [];
-    const BATCH_SIZE = 50; // Increased from 5 to 50 for speed (Web API handles this fine usually)
-    const CONCURRENCY_DELAY = 10; // 10ms minimal delay just to yield event loop
+    const BATCH_SIZE = 10; // Reduced from 50 to 10 to avoid 429 Too Many Requests
+    const CONCURRENCY_DELAY = 100; // Increased delay to be polite
     
+    // Retry helper
+    const retryOperation = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
+      try {
+        return await fn();
+      } catch (err: any) {
+        if (retries > 0 && err?.response?.status === 429) {
+          logger.warn(`⚠️ Translate rate limit (429). Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return retryOperation(fn, retries - 1, delay * 2);
+        }
+        throw err;
+      }
+    };
+
     for (let i = 0; i < texts.length; i += BATCH_SIZE) {
       const chunk = texts.slice(i, i + BATCH_SIZE);
       
       const chunkPromises = chunk.map(async (text) => {
-        // Skip empty or simple numbers/symbols to save API calls
         if (!text.trim() || /^\d+$/.test(text.trim())) return text;
         
-        // Minimal delay to prevent immediate blocking, but fast enough for subtitles
+        // Random delay to distribute requests
         await new Promise(r => setTimeout(r, Math.random() * CONCURRENCY_DELAY));
         
-        return this.translateText(text, from, to);
+        // Wrap in retry logic
+        return retryOperation(() => this.translateText(text, from, to));
       });
 
-      const chunkResults = await Promise.all(chunkPromises);
-      results.push(...chunkResults);
+      try {
+        const chunkResults = await Promise.all(chunkPromises);
+        results.push(...chunkResults);
+      } catch (error) {
+        // If a whole chunk fails after retries, fallback to original text for those lines
+        // to ensure we at least deliver the subtitle structure
+        logger.error('Batch translation chunk failed permanently, using original text as fallback');
+        results.push(...chunk);
+      }
       
+      // Delay between batches
+      if (i + BATCH_SIZE < texts.length) {
+         await new Promise(r => setTimeout(r, 500));
+      }
+
       // Log progress periodically
-      if ((i + BATCH_SIZE) % 200 === 0) {
+      if ((i + BATCH_SIZE) % 50 === 0) {
         logger.debug(`Translated ${results.length}/${texts.length} lines...`);
       }
     }
