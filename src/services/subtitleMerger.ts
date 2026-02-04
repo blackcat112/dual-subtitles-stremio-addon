@@ -110,8 +110,8 @@ export function mergeSubtitles(
 
     let combinedText = text1;
     if (text2) {
-      // Double newline for extra vertical spacing between languages
-      combinedText += '\n\n' + text2;
+      // Reverting to single newline as '\n\n' pushed text off-screen
+      combinedText += '\n' + text2;
     }
 
     processedEntries.push({
