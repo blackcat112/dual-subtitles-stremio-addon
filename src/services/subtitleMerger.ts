@@ -11,6 +11,27 @@ export function mergeSubtitles(
   srt2Content: string,
   options: MergedSubtitleOptions
 ): string {
+  logger.info(`Merging subtitles: ${options.topLanguage} + ${options.bottomLanguage}`);
+
+  // Parse both SRT files
+  const entries1 = parseSRT(srt1Content);
+  const entries2 = parseSRT(srt2Content);
+
+  if (entries1.length === 0 || entries2.length === 0) {
+    logger.warn('One or both subtitle files are empty');
+    return '';
+  }
+
+  // Apply offset if specified
+  const offset = options.offset || 0;
+  const adjustedEntries2 = offset !== 0 
+    ? entries2.map(entry => ({
+        ...entry,
+        startTime: entry.startTime + offset,
+        endTime: entry.endTime + offset
+      }))
+    : entries2;
+
   // ASS Time Format: H:MM:SS.cc
   const toAssTime = (ms: number): string => {
     const date = new Date(ms);
