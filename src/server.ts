@@ -48,17 +48,35 @@ app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2', async (req, res) => 
 
     // Fetch and Merge on the fly
     // Note: We need to import fetchDualSubtitles and mergeSubtitles
-    const { fetchDualSubtitles } = require('./services/subtitleFetcher');
+    const { fetchDualSubtitles, fetchAndTranslateSubtitle } = require('./services/subtitleFetcher');
     const { mergeSubtitles } = require('./services/subtitleMerger');
 
-    const [srt1, srt2] = await fetchDualSubtitles(
-      imdbId,
-      type,
-      lang1,
-      lang2,
-      s,
-      e
-    );
+    let srt1, srt2;
+
+    // Check if Auto-Translation is requested (suffix '_auto')
+    if (lang2.endsWith('_auto')) {
+      const targetLang = lang2.replace('_auto', '');
+      logger.info(`🤖 Auto-Translation Mode detected: ${lang1} -> ${targetLang}`);
+      
+      [srt1, srt2] = await fetchAndTranslateSubtitle(
+        imdbId,
+        type,
+        lang1,     // Source
+        targetLang, // Target
+        s,
+        e
+      );
+    } else {
+      // Standard Dual Fetch (Smart Sync)
+      [srt1, srt2] = await fetchDualSubtitles(
+        imdbId,
+        type,
+        lang1,
+        lang2,
+        s,
+        e
+      );
+    }
 
     if (!srt1 && !srt2) {
       logger.warn('No subtitles found for on-demand request');
