@@ -32,89 +32,90 @@ export function mergeSubtitles(
       }))
     : entries2;
   
-  // Union Merge Strategy:
-  // 1. Collect all start/end timestamps from both languages
-  // 2. Sort unique times
-  // 3. Create segments for each interval
-  const allTimes = new Set<number>();
-  entries1.forEach(e => { allTimes.add(e.startTime); allTimes.add(e.endTime); });
-  adjustedEntries2.forEach(e => { allTimes.add(e.startTime); allTimes.add(e.endTime); });
-  
-  const uniqueTimes = Array.from(allTimes).sort((a, b) => a - b);
-  const mergedEntries: SubtitleEntry[] = [];
-  const minDuration = 500; // Minimum 500ms to be readable
-  
+  // Master-Slave Strategy:
+  // Use entries1 (Top Language) as the "Master" for timing.
+  // It provides the "professional" rhythm requested by the user.
+  // entries2 (Bottom Language) are merged in if they overlap.
+  // Any unique entries from entries2 that don't overlap are inserted as "orphans".
+
   const cleanText = (text: string): string => {
     if (!text) return '';
     return text
-      .replace(/<[^>]*>/g, '')       // Remove HTML tags like <font>
-      .replace(/\{[^}]*\}/g, '')     // Remove ASS tags like {\c&H...}
+      .replace(/<[^>]*>/g, '') 
+      .replace(/\{[^}]*\}/g, '')
+      .replace(/\n/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
   };
 
-  for (let i = 0; i < uniqueTimes.length - 1; i++) {
-    const startTime = uniqueTimes[i];
-    const endTime = uniqueTimes[i+1];
-    
-    // Skip if segment is effectively zero duration
-    if (endTime - startTime < 50) continue;
-    
-    // Find active subtitles in this interval
-    const midPoint = startTime + (endTime - startTime) / 2;
-    
-    const sub1 = entries1.find(e => e.startTime <= midPoint && e.endTime >= midPoint);
-    const sub2 = adjustedEntries2.find(e => e.startTime <= midPoint && e.endTime >= midPoint);
-    
-    if (!sub1 && !sub2) continue;
-    
-    // Process text:
-    // 1. Clean tags
-    // 2. Join multiple lines into one (to save vertical space)
-    // 3. Trim
-    const processText = (entry: SubtitleEntry) => {
-      const cleaned = cleanText(entry.text);
-      return cleaned.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
-    };
+  const processedEntries: SubtitleEntry[] = [];
+  const usedIndices2 = new Set<number>();
 
-    const text1 = sub1 ? processText(sub1) : '';
-    const text2 = sub2 ? processText(sub2) : '';
-    
-    // Only add if we have at least one text
-    if (!text1 && !text2) continue;
-    
-    // Construct merged text
-    // Format:
-    // Text 1
-    // Text 2
+  // 1. Process Master Entries (entries1)
+  for (const entry1 of entries1) {
+    const start1 = entry1.startTime;
+    const end1 = entry1.endTime;
+    const text1 = cleanText(entry1.text);
+
+    if (!text1) continue;
+
+    // Find overlapping entries in entries2
+    // Overlap condition: (StartA <= EndB) and (EndA >= StartB)
+    const overlapping = adjustedEntries2.filter((entry2, index) => {
+      const isOverlapping = (entry1.startTime < entry2.endTime - 50) && (entry1.endTime > entry2.startTime + 50);
+      if (isOverlapping) usedIndices2.add(index);
+      return isOverlapping;
+    });
+
+    let text2 = '';
+    if (overlapping.length > 0) {
+      // Join all overlapping texts (usually just one, but maybe two short ones)
+      text2 = overlapping.map(e => cleanText(e.text)).join(' ');
+    }
+
     let combinedText = text1;
     if (text2) {
-      if (combinedText) combinedText += '\n';
-      combinedText += text2;
-    }
-    
-    // Optimization: Merge with previous entry if text is identical
-    const prev = mergedEntries[mergedEntries.length - 1];
-    
-    // Check if we can merge with previous entry
-    // Merge if text is identical AND the gap is small (< 500ms) or non-existent
-    if (prev && prev.text === combinedText) {
-      const gap = startTime - prev.endTime;
-      if (gap <= 500) { // Bridge small gaps to prevent flickering
-         prev.endTime = endTime;
-         continue; // Done with this segment
-      }
+      combinedText += '\n' + text2;
     }
 
-    mergedEntries.push({
-      index: mergedEntries.length + 1,
-      startTime,
-      endTime,
+    processedEntries.push({
+      index: 0, // Will reindex later
+      startTime: start1,
+      endTime: end1,
       text: combinedText
     });
   }
+
+  // 2. Add Orphan Entries from entries2 (those that didn't match any Master entry)
+  // This ensures we don't lose dialogue if the Master is silent
+  adjustedEntries2.forEach((entry2, index) => {
+    if (!usedIndices2.has(index)) {
+      const text2 = cleanText(entry2.text);
+      if (text2) {
+        processedEntries.push({
+          index: 0,
+          startTime: entry2.startTime,
+          endTime: entry2.endTime,
+          text: '\n' + text2 // Empty top line for visual consistency usually? Or just text.
+                             // Add separator only if we want to force bottom position. 
+                             // For now just text2 is fine, or arguably "_" + \n + text2 to keep it at bottom?
+                             // User just wants content. Let's just put the text.
+                             // Actually, if it's the second language, it feels better to be on the second line?
+                             // Let's just output text2. Players handle single lines fine.
+        });
+      }
+    }
+  });
+
+  // 3. Sort by start time and reindex
+  processedEntries.sort((a, b) => a.startTime - b.startTime);
   
-  logger.success(`Merged ${mergedEntries.length} subtitle entries (Union Strategy)`);
+  const finalEntries = processedEntries.map((entry, idx) => ({
+    ...entry,
+    index: idx + 1
+  }));
   
-  // Serialize back to SRT format
-  return serializeSRT(mergedEntries);
+  logger.success(`Merged ${finalEntries.length} subtitle entries (Master-Slave Strategy)`);
+  
+  return serializeSRT(finalEntries);
 }
