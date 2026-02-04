@@ -215,7 +215,7 @@ export async function fetchAndTranslateSubtitle(
   const sourceSrt = await fetchSubtitle({
     imdbId,
     language: sourceLang,
-    type,
+    type: type as any,
     season,
     episode
   });
