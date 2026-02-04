@@ -6,8 +6,6 @@ export interface SubtitleSearchParams {
   type: 'movie' | 'episode' | 'series';
   season?: number;
   episode?: number;
-  moviehash?: string;
-  query?: string;
 }
 
 export interface SubtitleResult {

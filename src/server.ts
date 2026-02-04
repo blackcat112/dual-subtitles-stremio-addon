@@ -31,23 +31,23 @@ app.get('/configure', (req, res) => {
   res.sendFile('configure.html', { root: './public' });
 });
 
-// -------------------------------------------------------------------------
-// Subtitle Handler Logic (Reusable for multiple route patterns)
-// -------------------------------------------------------------------------
-const subtitleHandler = async (req: express.Request, res: express.Response) => {
-  const { imdbId, season, episode, lang1, lang2, videoHash } = req.params as any;
+// Dynamic Subtitle Merge Endpoint
+// This is triggered ONLY when the user actually selects a subtitle in Stremio
+app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2', async (req, res) => {
+  const { imdbId, season, episode, lang1, lang2 } = req.params;
   
-  const hashLog = videoHash && videoHash !== 'nohash' ? ` (#${videoHash.substring(0,8)})` : '';
-  logger.info(`🚨 ON-DEMAND REQUEST: ${imdbId} S${season}E${episode} [${lang1}+${lang2}]${hashLog}`);
+  logger.info(`🚨 ON-DEMAND REQUEST: ${imdbId} S${season}E${episode} [${lang1}+${lang2}]`);
 
   try {
     const s = parseInt(season);
     const e = parseInt(episode);
     
-    // Determine type
-    const type = (season && episode && season !== '0') ? 'episode' : 'movie'; 
+    // Determine type (if it has S/E it's likely a series, but we can infer)
+    // For Stremio, usually if season/episode are present it's a series.
+    const type = (season && episode && season !== '0') ? 'episode' : 'movie'; // Rough inference
 
-    // Fetch and Merge
+    // Fetch and Merge on the fly
+    // Note: We need to import fetchDualSubtitles and mergeSubtitles
     const { fetchDualSubtitles } = require('./services/subtitleFetcher');
     const { mergeSubtitles } = require('./services/subtitleMerger');
 
@@ -57,8 +57,7 @@ const subtitleHandler = async (req: express.Request, res: express.Response) => {
       lang1,
       lang2,
       s,
-      e,
-      (videoHash && videoHash !== 'nohash') ? videoHash : undefined
+      e
     );
 
     if (!srt1 && !srt2) {
@@ -66,6 +65,13 @@ const subtitleHandler = async (req: express.Request, res: express.Response) => {
       res.status(404).send('Not found');
       return;
     }
+
+    // If one is missing, we might want to just serve the one we have?
+    // Or strictly dual? Let's try to merge what we have.
+    // If we have 0, we 404.
+    
+    // We need to know which is "Top" language.
+    // We assume lang1 is Top (Master) as per URL structure.
     
     const validSrt1 = srt1 || '';
     const validSrt2 = srt2 || '';
@@ -85,13 +91,7 @@ const subtitleHandler = async (req: express.Request, res: express.Response) => {
     logger.error('Error in on-demand subtitle generation', error);
     res.status(500).send('Internal Server Error');
   }
-};
-
-// Register Routes (Explicit paths to avoid regex issues with optional params)
-// Route 1: Standard request (no hash)
-app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2', subtitleHandler);
-// Route 2: Perfect Match request (with hash)
-app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2/:videoHash', subtitleHandler);
+});
 
 // Serve subtitle files from storage
 app.get('/subtitle/:id', (req, res) => {

@@ -61,75 +61,45 @@ export async function fetchSubtitle(params: SubtitleSearchParams): Promise<strin
  * Calculate Jaccard similarity coefficient between two strings (filenames)
  * Used to find matching subtitles (e.g. same release group)
  */
-/**
- * Calculate similarity with Release Type Awareness
- * Prioritizes matching "release groups" and "source types" (WEB-DL, HDTV, BluRay)
- */
 function calculateSimilarity(str1: string, str2: string): number {
-  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ');
-  const s1 = normalize(str1);
-  const s2 = normalize(str2);
-
-  // 1. Critical Tags Verification (Source & Resolution)
-  // If one is HDTV and other is WEB-DL, they often have different cuts/lengths.
-  const criticalTags = ['hdtv', 'web dl', 'webrip', 'bluray', 'bdrip', 'dvdrip', '1080p', '720p', '2160p', '4k'];
-  let criticalMatchCount = 0;
-  let criticalMismatch = false;
-
-  for (const tag of criticalTags) {
-    const has1 = s1.includes(normalize(tag));
-    const has2 = s2.includes(normalize(tag));
-    
-    if (has1 && has2) criticalMatchCount++;
-    if (has1 !== has2) {
-       // If distinct mismatch on source type (e.g. HDTV vs BluRay), penalize heavily
-       if ((tag === 'hdtv' && s2.includes('bluray')) || (tag === 'bluray' && s2.includes('hdtv'))) {
-         criticalMismatch = true;
-       }
-    }
-  }
-
-  // 2. Token Matching (Jaccard)
   const tokenize = (s: string) => {
-    return new Set(s.split(' ').filter(w => w.length > 2)); // Ignore short words
+    return new Set(
+      s.toLowerCase()
+       .replace(/[^a-z0-9]+/g, ' ')
+       .split(' ')
+       .filter(w => w.length > 2) // Ignore short words
+    );
   };
-  const set1 = tokenize(s1);
-  const set2 = tokenize(s2);
+
+  const set1 = tokenize(str1);
+  const set2 = tokenize(str2);
   
   if (set1.size === 0 || set2.size === 0) return 0;
 
   const intersection = new Set([...set1].filter(x => set2.has(x)));
   const union = new Set([...set1, ...set2]);
-  
-  let jaccard = intersection.size / union.size;
 
-  // 3. Score Boosting/Penalizing
-  if (criticalMismatch) {
-    jaccard *= 0.5; // Heavy penalty for source mismatch
-  } else if (criticalMatchCount > 0) {
-    jaccard += (criticalMatchCount * 0.1); // Boost for matching tags
-  }
-
-  return Math.min(jaccard, 1.0); // Cap at 1.0
+  return intersection.size / union.size;
 }
 
 /**
  * Fetch subtitles for two languages with Smart Synchronization
+ * Returns [language1_content, language2_content]
  */
 export async function fetchDualSubtitles(
   imdbId: string,
-  type: 'movie' | 'episode' | 'serie',
+  type: 'movie' | 'episode' | 'serie', // 'serie' is what Stremio sends sometimes
   lang1: string,
   lang2: string,
   season?: number,
-  episode?: number,
-  moviehash?: string
+  episode?: number
 ): Promise<[string | null, string | null]> {
   logger.info(`Fetching dual subtitles: ${lang1} + ${lang2} for ${imdbId} (Smart Sync)`);
-  if (moviehash) logger.info(`  #️⃣  Using VideoHash: ${moviehash}`);
 
-  const params1_base = { imdbId, language: lang1, type: type as any, season, episode, moviehash };
-  const params2_base = { imdbId, language: lang2, type: type as any, season, episode, moviehash };
+  // 1. Fetch Candidates (Top 5 for each language)
+  // We can't use the simple fetchSubtitle() because we need lists to compare
+  const params1_base = { imdbId, language: lang1, type: type as any, season, episode };
+  const params2_base = { imdbId, language: lang2, type: type as any, season, episode };
 
   const [results1, results2] = await Promise.all([
     openSubtitlesClient.searchSubtitles(params1_base),
@@ -141,12 +111,13 @@ export async function fetchDualSubtitles(
     return [null, null];
   }
 
-  // Take top 10 candidates to increase chance of finding matching release
-  const candidates1 = results1.slice(0, 10);
-  const candidates2 = results2.slice(0, 10);
+  // Take top candidates
+  const candidates1 = results1.slice(0, 5);
+  const candidates2 = results2.slice(0, 5);
 
+  // 2. Find Best Pair
   let bestPair = {
-    sub1: candidates1[0],
+    sub1: candidates1[0], // Default to top ones
     sub2: candidates2[0],
     score: -1
   };
@@ -160,7 +131,7 @@ export async function fetchDualSubtitles(
     }
   }
 
-  logger.info(`Smart Matching: Key tags found? Score: ${bestPair.score.toFixed(2)}`);
+  logger.info(`Smart Matching: Selected pair with score ${bestPair.score.toFixed(2)}`);
   logger.info(`  L1: ${bestPair.sub1.fileName}`);
   logger.info(`  L2: ${bestPair.sub2.fileName}`);
 
