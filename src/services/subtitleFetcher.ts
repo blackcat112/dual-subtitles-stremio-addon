@@ -180,12 +180,36 @@ export async function fetchAndTranslateSubtitle(
 ): Promise<[string | null, string | null]> {
   logger.info(`Fetching & Translating: ${sourceLang} -> ${targetLang} for ${imdbId} (Perfect Sync)`);
 
+  // 0. Check Cache for ALREADY translated version
+  // We use a special cache key suffix or prefix to differentiate "source file" from "generated translation"
+  // Since our cache stores by (imdbId, lang), we can use a fake language code like "fr_auto" or just "fr" 
+  // BUT "fr" might be a real file. 
+  // Better: Use a completely separate key structure? 
+  // subtitleCache uses: key = `${imdbId}:${language}:${season}:${episode}`;
+  // So we can use language = `${targetLang}_from_${sourceLang}`
+  
+  const cacheLangKey = `${targetLang}_from_${sourceLang}`;
+  const allowCache = true; // Feature flag just in case
+
+  if (allowCache) {
+    const cachedTranslated = subtitleCache.get(imdbId, cacheLangKey, season, episode);
+    if (cachedTranslated) {
+      logger.info(`✨ Cache hit for Translated Subtitle (${cacheLangKey})`);
+      // We also need the sourceSrt to return the pair
+      // Ideally we should cache the PAIR or just fetch source again (it's fast/cached)
+      const sourceSrtCached = await fetchSubtitle({ imdbId, language: sourceLang, type, season, episode });
+      if (sourceSrtCached) {
+         return [sourceSrtCached, cachedTranslated];
+      }
+    }
+  }
+
   // 1. Fetch Source Subtitle (Best Candidate)
   // We use the simpler fetchSubtitle logic which gets the single best file
   const sourceSrt = await fetchSubtitle({
     imdbId,
     language: sourceLang,
-    type: type as any,
+    type,
     season,
     episode
   });
@@ -221,6 +245,12 @@ export async function fetchAndTranslateSubtitle(
     }));
 
     const translatedSrt = serializeSRT(translatedEntries);
+
+    // 6. Cache the Result!
+    if (translatedSrt && allowCache) {
+       subtitleCache.set(imdbId, cacheLangKey, translatedSrt, season, episode);
+       logger.info(`💾 Cached translated subtitle: ${cacheLangKey}`);
+    }
 
     logger.success(`✅ Generated translated subtitle (${targetLang}) from source (${sourceLang})`);
 
