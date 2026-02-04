@@ -26,7 +26,7 @@ builder.defineSubtitlesHandler(async ({ type, id }) => {
 
   const makeSubtitle = (lang1: string, lang2: string, label: string, flags: string) => ({
     id: `dual-${imdbId}-${lang1}-${lang2}`,
-    url: `${host}/subtitle/${imdbId}/${season}/${episode}/${lang1}/${lang2}.ass`,
+    url: `${host}/subtitle/${imdbId}/${season}/${episode}/${lang1}/${lang2}`,
     lang: `Dual ${flags} ${label}`
   });
 
