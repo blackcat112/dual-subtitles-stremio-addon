@@ -99,6 +99,11 @@ export class OpenSubtitlesClient {
         imdb_id: cleanImdbId,
         languages: language,
       };
+      
+      if (params.moviehash) {
+        logger.info(`  #️⃣  Using moviehash for search: ${params.moviehash}`);
+        queryParams.moviehash = params.moviehash;
+      }
 
       if ((type === 'episode' || type === 'series') && season && episode) {
         queryParams.season_number = parseInt(season.toString(), 10);
