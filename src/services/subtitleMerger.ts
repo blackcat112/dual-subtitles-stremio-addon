@@ -81,6 +81,10 @@ export function mergeSubtitles(
     const lines1 = rawText1.split('\n');
     const lines2 = rawText2 ? rawText2.split('\n') : [];
     
+    // Target width for the left column to ensure alignment
+    // 60 chars is a reasonable "max width" for a wide line on TV
+    const COL_WIDTH = 60; 
+
     const maxLines = Math.max(lines1.length, lines2.length);
     const combinedLines: string[] = [];
 
@@ -90,17 +94,28 @@ export function mergeSubtitles(
         const rawSeg2 = lines2[i] || '';
         const seg2 = rawSeg2 ? `<i>${rawSeg2}</i>` : ''; 
         
+        // Pad the left segment with spaces to try and align the separator
+        // Note: With variable width fonts, perfect alignment is impossible,
+        // but this "fixed char width" approach is the standard best effort.
+        let paddedSeg1 = seg1;
+        if (seg1.length < COL_WIDTH) {
+            // Fill with spaces
+            paddedSeg1 = seg1.padEnd(COL_WIDTH, ' ');
+        }
+        
         if (seg1 && seg2) {
             // Both exist: Join with separator
-            combinedLines.push(`${seg1}   |   ${seg2}`);
+            // Use padded left side
+            combinedLines.push(`${paddedSeg1}   |   ${seg2}`);
         } else if (seg1) {
             // Only Left
             combinedLines.push(`${seg1}`);
         } else if (seg2) {
-            // Only Right (indented for alignment visual cue?)
-            // Just putting it might look weird if left is empty. 
-            // Let's assume user wants to see it even if alone.
-            combinedLines.push(`        |   ${seg2}`); 
+            // Only Right
+            // If we have a right line but no left line, we should probably still indent
+            // so it appears in the right column
+            const emptyLeft = ''.padEnd(COL_WIDTH, ' ');
+            combinedLines.push(`${emptyLeft}   |   ${seg2}`); 
         }
     }
 
@@ -120,7 +135,9 @@ export function mergeSubtitles(
         // Orphans: Just show them centered/normal or side?
         // Let's put them on the right side logic to be consistent
         const lines = rawText2.split('\n');
-        const formatted = lines.map(line => `        |   <i>${line}</i>`).join('\n');
+        const emptyLeft = ''.padEnd(COL_WIDTH, ' ');
+        // Use the padding to push content to the right
+        const formatted = lines.map(line => `${emptyLeft}   |   <i>${line}</i>`).join('\n');
         
         processedEntries.push({
           index: 0,
