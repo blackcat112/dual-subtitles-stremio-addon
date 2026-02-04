@@ -58,24 +58,107 @@ export async function fetchSubtitle(params: SubtitleSearchParams): Promise<strin
 }
 
 /**
- * Fetch subtitles for two languages
+ * Calculate Jaccard similarity coefficient between two strings (filenames)
+ * Used to find matching subtitles (e.g. same release group)
+ */
+function calculateSimilarity(str1: string, str2: string): number {
+  const tokenize = (s: string) => {
+    return new Set(
+      s.toLowerCase()
+       .replace(/[^a-z0-9]+/g, ' ')
+       .split(' ')
+       .filter(w => w.length > 2) // Ignore short words
+    );
+  };
+
+  const set1 = tokenize(str1);
+  const set2 = tokenize(str2);
+  
+  if (set1.size === 0 || set2.size === 0) return 0;
+
+  const intersection = new Set([...set1].filter(x => set2.has(x)));
+  const union = new Set([...set1, ...set2]);
+
+  return intersection.size / union.size;
+}
+
+/**
+ * Fetch subtitles for two languages with Smart Synchronization
  * Returns [language1_content, language2_content]
  */
 export async function fetchDualSubtitles(
   imdbId: string,
-  type: 'movie' | 'episode',
+  type: 'movie' | 'episode' | 'serie', // 'serie' is what Stremio sends sometimes
   lang1: string,
   lang2: string,
   season?: number,
   episode?: number
 ): Promise<[string | null, string | null]> {
-  logger.info(`Fetching dual subtitles: ${lang1} + ${lang2} for ${imdbId}`);
+  logger.info(`Fetching dual subtitles: ${lang1} + ${lang2} for ${imdbId} (Smart Sync)`);
 
-  // Fetch both subtitles in parallel
-  const [subtitle1, subtitle2] = await Promise.all([
-    fetchSubtitle({ imdbId, language: lang1, type, season, episode }),
-    fetchSubtitle({ imdbId, language: lang2, type, season, episode })
+  // 1. Fetch Candidates (Top 5 for each language)
+  // We can't use the simple fetchSubtitle() because we need lists to compare
+  const params1_base = { imdbId, language: lang1, type: type as any, season, episode };
+  const params2_base = { imdbId, language: lang2, type: type as any, season, episode };
+
+  const [results1, results2] = await Promise.all([
+    openSubtitlesClient.searchSubtitles(params1_base),
+    openSubtitlesClient.searchSubtitles(params2_base)
   ]);
 
-  return [subtitle1, subtitle2];
+  if (results1.length === 0 || results2.length === 0) {
+    logger.warn(`Missing subtitles for one language (L1: ${results1.length}, L2: ${results2.length})`);
+    return [null, null];
+  }
+
+  // Take top candidates
+  const candidates1 = results1.slice(0, 5);
+  const candidates2 = results2.slice(0, 5);
+
+  // 2. Find Best Pair
+  let bestPair = {
+    sub1: candidates1[0], // Default to top ones
+    sub2: candidates2[0],
+    score: -1
+  };
+
+  for (const sub1 of candidates1) {
+    for (const sub2 of candidates2) {
+      const score = calculateSimilarity(sub1.fileName, sub2.fileName);
+      if (score > bestPair.score) {
+        bestPair = { sub1, sub2, score };
+      }
+    }
+  }
+
+  logger.info(`Smart Matching: Selected pair with score ${bestPair.score.toFixed(2)}`);
+  logger.info(`  L1: ${bestPair.sub1.fileName}`);
+  logger.info(`  L2: ${bestPair.sub2.fileName}`);
+
+  // 3. Check Cache & Download
+  // We need to handle caching manually here since we bypassed fetchSubtitle
+  const getContent = async (sub: any, lang: string) => {
+    const cached = subtitleCache.get(imdbId, lang, season, episode);
+    // Rough cache check: IF the cached content matches what we WOULD have downloaded... 
+    // But we don't know file ID of cache.
+    // Simpler: Just rely on downloadSubtitle (it doesn't cache itself).
+    
+    // Actually, we should use the cache key logic.
+    // But since we are picking specific files now, the generic cache (by IMDB ID) might be outdated if we picked a DIFFERENT release.
+    // For now, let's just download fresh to ensure sync, or update cache.
+    
+    // To be safe and effective: Download by ID.
+    const content = await openSubtitlesClient.downloadSubtitle(sub.id);
+    if (content) {
+      subtitleCache.set(imdbId, lang, content, season, episode);
+    }
+    return content;
+  };
+
+  const [content1, content2] = await Promise.all([
+    getContent(bestPair.sub1, lang1),
+    getContent(bestPair.sub2, lang2)
+  ]);
+
+  return [content1, content2];
 }
