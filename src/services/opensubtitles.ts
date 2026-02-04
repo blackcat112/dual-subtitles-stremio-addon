@@ -116,6 +116,11 @@ export class OpenSubtitlesClient {
         timeout: 10000
       });
 
+      // Log quota status for debugging
+      const remaining = response.headers['x-ratelimit-remaining'];
+      const limit = response.headers['x-ratelimit-limit'];
+      logger.debug(`[Key #${this.currentKeyIndex + 1}] Status: ${response.status} | Quota: ${remaining}/${limit}`);
+
       if (!response.data || !response.data.data) {
         return [];
       }
