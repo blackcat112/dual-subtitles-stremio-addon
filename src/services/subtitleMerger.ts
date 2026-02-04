@@ -67,10 +67,14 @@ export function mergeSubtitles(
       return isOverlapping;
     });
 
+    // Style secondary text: Gold color + Italic
+    const styleSecondary = (t: string) => `<i><font color="#FFD700">${t}</font></i>`;
+
     let text2 = '';
     if (overlapping.length > 0) {
-      // Join all overlapping texts (usually just one, but maybe two short ones)
+      // Join all overlapping texts and styling
       text2 = overlapping.map(e => cleanText(e.text)).join(' ');
+      if (text2) text2 = styleSecondary(text2);
     }
 
     let combinedText = text1;
@@ -92,16 +96,14 @@ export function mergeSubtitles(
     if (!usedIndices2.has(index)) {
       const text2 = cleanText(entry2.text);
       if (text2) {
+        // Also style orphans from secondary language
+        const styledText2 = `<i><font color="#FFD700">${text2}</font></i>`;
+        
         processedEntries.push({
           index: 0,
           startTime: entry2.startTime,
           endTime: entry2.endTime,
-          text: '\n' + text2 // Empty top line for visual consistency usually? Or just text.
-                             // Add separator only if we want to force bottom position. 
-                             // For now just text2 is fine, or arguably "_" + \n + text2 to keep it at bottom?
-                             // User just wants content. Let's just put the text.
-                             // Actually, if it's the second language, it feels better to be on the second line?
-                             // Let's just output text2. Players handle single lines fine.
+          text: styledText2
         });
       }
     }
