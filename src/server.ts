@@ -139,6 +139,27 @@ app.listen(config.port, () => {
     logger.warn('⚠️  OpenSubtitles API key NOT configured');
     logger.warn('   Set OPENSUBTITLES_API_KEY in .env file');
   }
+
+  // Keep-Alive Logic for Render Free Tier
+  // Render spins down inactive web services after 15 minutes.
+  // We ping our own /health endpoint every 14 minutes to stay awake during usage.
+  if (process.env.RENDER || process.env.KEEP_ALIVE) {
+    const PING_INTERVAL = 14 * 60 * 1000; // 14 minutes
+    logger.info(`⏰ Keep-Alive system active: Pinging /health every 14 minutes`);
+    
+    setInterval(async () => {
+      try {
+        // Use standard http/https module or axios if available. We have axios.
+        const axios = require('axios');
+        await axios.get(`http://localhost:${config.port}/health`);
+        // We generally don't log success to avoid cluttering logs, 
+        // but for debugging phase it might be useful. Keeping it silent for production cleanliness.
+        // logger.debug('Keep-Alive ping sent');
+      } catch (err: any) {
+        logger.error(`Keep-Alive ping failed: ${err.message}`);
+      }
+    }, PING_INTERVAL);
+  }
 });
 
 // Graceful shutdown
