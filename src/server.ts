@@ -23,6 +23,71 @@ app.get('/clear-cache', (req, res) => {
   res.json({ status: 'cache cleared', timestamp: new Date().toISOString() });
 });
 
+// Serve static files from public dir
+app.use(express.static('public'));
+
+// Dynamic Subtitle Merge Endpoint
+// This is triggered ONLY when the user actually selects a subtitle in Stremio
+app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2', async (req, res) => {
+  const { imdbId, season, episode, lang1, lang2 } = req.params;
+  
+  logger.info(`🚨 ON-DEMAND REQUEST: ${imdbId} S${season}E${episode} [${lang1}+${lang2}]`);
+
+  try {
+    const s = parseInt(season);
+    const e = parseInt(episode);
+    
+    // Determine type (if it has S/E it's likely a series, but we can infer)
+    // For Stremio, usually if season/episode are present it's a series.
+    const type = (season && episode && season !== '0') ? 'episode' : 'movie'; // Rough inference
+
+    // Fetch and Merge on the fly
+    // Note: We need to import fetchDualSubtitles and mergeSubtitles
+    const { fetchDualSubtitles } = require('./services/subtitleFetcher');
+    const { mergeSubtitles } = require('./services/subtitleMerger');
+
+    const [srt1, srt2] = await fetchDualSubtitles(
+      imdbId,
+      type,
+      lang1,
+      lang2,
+      s,
+      e
+    );
+
+    if (!srt1 && !srt2) {
+      logger.warn('No subtitles found for on-demand request');
+      res.status(404).send('Not found');
+      return;
+    }
+
+    // If one is missing, we might want to just serve the one we have?
+    // Or strictly dual? Let's try to merge what we have.
+    // If we have 0, we 404.
+    
+    // We need to know which is "Top" language.
+    // We assume lang1 is Top (Master) as per URL structure.
+    
+    const validSrt1 = srt1 || '';
+    const validSrt2 = srt2 || '';
+
+    const mergedSrt = mergeSubtitles(validSrt1, validSrt2, {
+      topLanguage: lang1,
+      bottomLanguage: lang2
+    });
+
+    // Send response
+    res.setHeader('Content-Type', 'application/x-subrip');
+    res.setHeader('Content-Disposition', `inline; filename="${imdbId}-${lang1}-${lang2}.srt"`);
+    res.send(mergedSrt);
+    logger.success(`✅ Served merged subtitle for ${imdbId} (${lang1}+${lang2})`);
+
+  } catch (error) {
+    logger.error('Error in on-demand subtitle generation', error);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
 // Serve subtitle files from storage
 app.get('/subtitle/:id', (req, res) => {
   const { id } = req.params;
