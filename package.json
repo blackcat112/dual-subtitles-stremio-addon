@@ -26,6 +26,7 @@
 		"axios": "^1.13.4",
 		"dotenv": "^17.2.3",
 		"express": "^5.2.1",
+		"google-translate-api-x": "^10.7.2",
 		"srt-parser-2": "^1.2.3",
 		"stremio-addon-sdk": "1.1.x"
 	},

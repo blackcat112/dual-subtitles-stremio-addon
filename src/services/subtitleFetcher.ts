@@ -162,3 +162,75 @@ export async function fetchDualSubtitles(
 
   return [content1, content2];
 }
+
+import { parseSRT, serializeSRT } from '../utils/srtParser';
+import { translator } from './translator';
+
+/**
+ * Fetch a single Source Subtitle and Auto-Translate it to Target Language
+ * Guarantees perfect synchronization as timestamps are identical.
+ */
+export async function fetchAndTranslateSubtitle(
+  imdbId: string,
+  type: 'movie' | 'episode' | 'serie',
+  sourceLang: string,
+  targetLang: string,
+  season?: number,
+  episode?: number
+): Promise<[string | null, string | null]> {
+  logger.info(`Fetching & Translating: ${sourceLang} -> ${targetLang} for ${imdbId} (Perfect Sync)`);
+
+  // 1. Fetch Source Subtitle (Best Candidate)
+  // We use the simpler fetchSubtitle logic which gets the single best file
+  const sourceSrt = await fetchSubtitle({
+    imdbId,
+    language: sourceLang,
+    type,
+    season,
+    episode
+  });
+
+  if (!sourceSrt) {
+    logger.warn(`Source subtitle (${sourceLang}) not found for translation`);
+    return [null, null];
+  }
+
+  try {
+    // 2. Parse Source
+    const entries = parseSRT(sourceSrt);
+    if (entries.length === 0) return [sourceSrt, null];
+
+    // 3. Extract Texts
+    // Clean tags before translating to avoid confusing the translator
+    // (though google translate often handles simple tags, it's safer to strip for pure text)
+    // Actually, we should strip tags in the merging phase, but for translation, 
+    // sending raw tags might result in broken tags. 
+    // Let's strip tags for translation input.
+    const cleanForTranslation = (t: string) => t.replace(/<[^>]*>/g, '').replace(/\{[^}]*\}/g, '').trim();
+    
+    const textsToTranslate = entries.map(e => cleanForTranslation(e.text));
+
+    // 4. Translate Batch
+    const translatedTexts = await translator.translateBatch(textsToTranslate, sourceLang, targetLang);
+
+    // 5. Reconstruct Target SRT
+    // We map the translated text back to the original timestamps
+    const translatedEntries = entries.map((entry, index) => ({
+      ...entry,
+      text: translatedTexts[index] || '' // Fallback to empty if translation missing
+    }));
+
+    const translatedSrt = serializeSRT(translatedEntries);
+
+    logger.success(`✅ Generated translated subtitle (${targetLang}) from source (${sourceLang})`);
+
+    return [sourceSrt, translatedSrt];
+
+  } catch (error) {
+    logger.error('Error during auto-translation workflow', error);
+    // Fallback: Return only source if translation fails? 
+    // Or return null to trigger 404? 
+    // Providing source is better than nothing.
+    return [sourceSrt, null];
+  }
+}
