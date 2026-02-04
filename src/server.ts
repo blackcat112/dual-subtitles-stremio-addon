@@ -82,10 +82,10 @@ app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2', async (req, res) => 
     });
 
     // Send response
-    res.setHeader('Content-Type', 'application/x-subrip');
-    res.setHeader('Content-Disposition', `inline; filename="${imdbId}-${lang1}-${lang2}.srt"`);
+    res.setHeader('Content-Type', 'text/x-ssa'); // Correct MIME for .ass
+    res.setHeader('Content-Disposition', `inline; filename="${imdbId}-${lang1}-${lang2}.ass"`);
     res.send(mergedSrt);
-    logger.success(`✅ Served merged subtitle for ${imdbId} (${lang1}+${lang2})`);
+    logger.success(`✅ Served ASS merged subtitle for ${imdbId} (${lang1}+${lang2})`);
 
   } catch (error) {
     logger.error('Error in on-demand subtitle generation', error);
