@@ -67,8 +67,9 @@ export function mergeSubtitles(
       return isOverlapping;
     });
 
-    // Style secondary text: Gold color + Italic
-    const styleSecondary = (t: string) => `<i><font color="#FFD700">${t}</font></i>`;
+    // Style secondary text: Italic only (Safest for Stremio)
+    // <font> tags are often rendered as raw text by Stremio's player
+    const styleSecondary = (t: string) => `<i>${t}</i>`;
 
     let text2 = '';
     if (overlapping.length > 0) {
@@ -97,7 +98,7 @@ export function mergeSubtitles(
       const text2 = cleanText(entry2.text);
       if (text2) {
         // Also style orphans from secondary language
-        const styledText2 = `<i><font color="#FFD700">${text2}</font></i>`;
+        const styledText2 = `<i>${text2}</i>`;
         
         processedEntries.push({
           index: 0,
