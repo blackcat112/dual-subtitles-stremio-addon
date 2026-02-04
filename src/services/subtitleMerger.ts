@@ -35,83 +35,75 @@ export function mergeSubtitles(
   // Master-Slave Strategy:
   // Use entries1 (Top Language) as the "Master" for timing.
   // It provides the "professional" rhythm requested by the user.
-  // entries2 (Bottom Language) are merged in if they overlap.
-  // Any unique entries from entries2 that don't overlap are inserted as "orphans".
-
-  // Utility to split long text into multiple lines (max chars)
-  // Replaces the basic flattening logic
-  const processText = (text: string, isSecondary: boolean): string => {
+  // Utility to clean text but preserve full width (User preference)
+  const cleanText = (text: string, isSecondary: boolean): string => {
     if (!text) return '';
-    
-    // 1. Clean basic tags
     let clean = text
       .replace(/<[^>]*>/g, '') 
       .replace(/\{[^}]*\}/g, '')
       .replace(/\r\n/g, '\n')
       .replace(/\r/g, '\n')
       .trim();
-      
-    // 2. Wrap text (Limit ~40 chars per line)
-    const MAX_LINE_LENGTH = 45;
-    const words = clean.split(/\s+/);
-    let lines: string[] = [];
-    let currentLine = words[0];
+    
+    // Flatten to single line for better flow? 
+    // User said "me da igual que se vea ancho".
+    // Let's replace internal newlines with spaces to avoid weird multi-stacking
+    // clean = clean.replace(/\n/g, ' '); 
+    // Actually standard SRTs usually have max 2 lines. Let's keep original line breaks if they exist, 
+    // but maybe ensure max 2 lines? 
+    // Let's just strip excessive whitespace.
+    
+    clean = clean.replace(/\n+/g, '\n').trim();
 
-    for (let i = 1; i < words.length; i++) {
-        if (currentLine.length + 1 + words[i].length <= MAX_LINE_LENGTH) {
-            currentLine += ' ' + words[i];
-        } else {
-            lines.push(currentLine);
-            currentLine = words[i];
-        }
-    }
-    if (currentLine) lines.push(currentLine);
-    
-    // 3. Re-assemble
-    let final = lines.join('\n');
-    
-    // 4. Apply Secondary Styling override (if needed)
     if (isSecondary) {
-       // Wrap entire block in italics? Or line by line?
-       // SRT handles multiline italics fine if tags strictly enclose.
-       // Safest: <i>Line1\nLine2</i>
-       return `<i>${final}</i>`;
+       return `<i>${clean}</i>`;
     }
-    
-    return final;
+    return clean;
   };
 
   const processedEntries: SubtitleEntry[] = [];
-  const usedIndices2 = new Set<number>();
+  const usedIndices2 = new Set<number>(); // Track indices used in merging
 
   // 1. Process Master Entries (entries1)
   for (const entry1 of entries1) {
     const start1 = entry1.startTime;
     const end1 = entry1.endTime;
-    // Process Master lines (no italics)
-    const text1 = processText(entry1.text, false);
+    const text1 = cleanText(entry1.text, false);
 
     if (!text1) continue;
 
-    // Find overlapping entries in entries2
+    // Find overlapping entries in entries2 that haven't been fully consumed yet
+    // Strict Consumption Rule: 
+    // If we use an entry here, we mark it used.
+    // However, if a slave entry overlaps TWO masters slightly, we might want to prioritize the best overlap?
+    // Using simple "First Match wins" avoids repetition.
+    
     const overlapping = adjustedEntries2.filter((entry2, index) => {
+      // Logic: Overlap exists AND not already used
+      if (usedIndices2.has(index)) return false;
+
       const isOverlapping = (entry1.startTime < entry2.endTime - 50) && (entry1.endTime > entry2.startTime + 50);
-      if (isOverlapping) usedIndices2.add(index);
       return isOverlapping;
     });
 
     let text2 = '';
     if (overlapping.length > 0) {
-      // Join overlapping raw texts first with space, then process
-      // This merges fragmented segments into one readable block
-      const rawText2 = overlapping.map(e => e.text).join(' ');
-      text2 = processText(rawText2, true);
+      // Use the overlapping entries
+      text2 = overlapping.map(e => cleanText(e.text, true)).join(' ');
+      
+      // Mark them as used so they don't appear in the NEXT master entry
+      // This fixes: "sale una frase y luego sale otra vez"
+      overlapping.forEach(e => {
+        // Find the original index to mark as used
+        const originalIdx = adjustedEntries2.indexOf(e);
+        if (originalIdx !== -1) usedIndices2.add(originalIdx);
+      });
     }
 
     let combinedText = text1;
     if (text2) {
-      // Reverting to single newline as '\n\n' pushed text off-screen
-      combinedText += '\n' + text2;
+      // User specific request: "vuelve a poner dos saltos de linea"
+      combinedText += '\n\n' + text2;
     }
 
     processedEntries.push({
@@ -123,9 +115,10 @@ export function mergeSubtitles(
   }
 
   // 2. Add Orphan Entries from entries2
+  // Only add if NOT used in master merge
   adjustedEntries2.forEach((entry2, index) => {
     if (!usedIndices2.has(index)) {
-      const pText2 = processText(entry2.text, true);
+      const pText2 = cleanText(entry2.text, true);
       if (pText2) {
         processedEntries.push({
           index: 0,
