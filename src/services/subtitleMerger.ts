@@ -44,6 +44,14 @@ export function mergeSubtitles(
   const mergedEntries: SubtitleEntry[] = [];
   const minDuration = 500; // Minimum 500ms to be readable
   
+  const cleanText = (text: string): string => {
+    if (!text) return '';
+    return text
+      .replace(/<[^>]*>/g, '')       // Remove HTML tags like <font>
+      .replace(/\{[^}]*\}/g, '')     // Remove ASS tags like {\c&H...}
+      .trim();
+  };
+
   for (let i = 0; i < uniqueTimes.length - 1; i++) {
     const startTime = uniqueTimes[i];
     const endTime = uniqueTimes[i+1];
@@ -52,7 +60,6 @@ export function mergeSubtitles(
     if (endTime - startTime < 400) continue; // Ignore tiny gaps/segments
     
     // Find active subtitles in this interval
-    // We consider a subtitle active if it covers the CENTER of this interval
     const midPoint = startTime + (endTime - startTime) / 2;
     
     const sub1 = entries1.find(e => e.startTime <= midPoint && e.endTime >= midPoint);
@@ -60,8 +67,8 @@ export function mergeSubtitles(
     
     if (!sub1 && !sub2) continue;
     
-    const text1 = sub1 ? sub1.text.split('\n')[0].trim() : '';
-    const text2 = sub2 ? sub2.text.split('\n')[0].trim() : '';
+    const text1 = sub1 ? cleanText(sub1.text.split('\n')[0]) : '';
+    const text2 = sub2 ? cleanText(sub2.text.split('\n')[0]) : '';
     
     // Only add if we have at least one text
     if (!text1 && !text2) continue;
@@ -69,7 +76,7 @@ export function mergeSubtitles(
     // Construct merged text
     // Format:
     // Text 1
-    // Text 2 (No colors, just separate line)
+    // Text 2
     let combinedText = text1;
     if (text2) {
       if (combinedText) combinedText += '\n';
@@ -78,16 +85,23 @@ export function mergeSubtitles(
     
     // Optimization: Merge with previous entry if text is identical
     const prev = mergedEntries[mergedEntries.length - 1];
-    if (prev && prev.text === combinedText && prev.endTime === startTime) {
-      prev.endTime = endTime;
-    } else {
-      mergedEntries.push({
-        index: mergedEntries.length + 1,
-        startTime,
-        endTime,
-        text: combinedText
-      });
+    
+    // Check if we can merge with previous entry
+    // Merge if text is identical AND the gap is small (< 500ms) or non-existent
+    if (prev && prev.text === combinedText) {
+      const gap = startTime - prev.endTime;
+      if (gap <= 500) { // Bridge small gaps to prevent flickering
+         prev.endTime = endTime;
+         continue; // Done with this segment
+      }
     }
+
+    mergedEntries.push({
+      index: mergedEntries.length + 1,
+      startTime,
+      endTime,
+      text: combinedText
+    });
   }
   
   logger.success(`Merged ${mergedEntries.length} subtitle entries (Union Strategy)`);
