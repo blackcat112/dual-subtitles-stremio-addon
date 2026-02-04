@@ -46,19 +46,31 @@ export class OpenSubtitlesClient {
     try {
       return await operation(currentKey);
     } catch (error) {
-      // Check if error is quota related (429 Too Many Requests, 402 Payment Required for VIP, 403 Forbidden sometimes)
-      let isQuotaError = false;
+      // Check if error is quota related OR server error (5xx)
+      // 429: Too Many Requests (Quota)
+      // 402: Payment Required (VIP Quota)
+      // 403: Forbidden (Sometimes quota)
+      // 500/502/503/504: Server Side Issues (Retry might fix)
+      let isRetryableError = false;
       let status = 0;
 
       if (axios.isAxiosError(error) && error.response) {
         status = error.response.status;
-        if (status === 429 || status === 402 || (status === 403 && error.response.data?.message?.includes('quota'))) {
-          isQuotaError = true;
+        if (
+          status === 429 || 
+          status === 402 || 
+          (status === 403 && error.response.data?.message?.includes('quota')) ||
+          (status >= 500 && status < 600) // Retry all server errors
+        ) {
+          isRetryableError = true;
         }
       }
 
-      if (isQuotaError) {
-        logger.warn(`⚠️ Key ${this.currentKeyIndex + 1}/${this.apiKeys.length} exhausted (Status ${status}). Rotating...`);
+      if (isRetryableError) {
+        logger.warn(`⚠️ Key ${this.currentKeyIndex + 1}/${this.apiKeys.length} failed (Status ${status}). Rotating/Retrying...`);
+        
+        // If it's a server error (5xx), maybe wait a bit? 
+        // For now, rotation acts as a "fresh connection" attempt.
         
         // Rotate key index
         this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
