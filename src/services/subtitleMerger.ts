@@ -56,8 +56,8 @@ export function mergeSubtitles(
     const startTime = uniqueTimes[i];
     const endTime = uniqueTimes[i+1];
     
-    // Skip if segment is too short
-    if (endTime - startTime < 400) continue; // Ignore tiny gaps/segments
+    // Skip if segment is effectively zero duration
+    if (endTime - startTime < 50) continue;
     
     // Find active subtitles in this interval
     const midPoint = startTime + (endTime - startTime) / 2;
@@ -67,8 +67,17 @@ export function mergeSubtitles(
     
     if (!sub1 && !sub2) continue;
     
-    const text1 = sub1 ? cleanText(sub1.text.split('\n')[0]) : '';
-    const text2 = sub2 ? cleanText(sub2.text.split('\n')[0]) : '';
+    // Process text:
+    // 1. Clean tags
+    // 2. Join multiple lines into one (to save vertical space)
+    // 3. Trim
+    const processText = (entry: SubtitleEntry) => {
+      const cleaned = cleanText(entry.text);
+      return cleaned.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    };
+
+    const text1 = sub1 ? processText(sub1) : '';
+    const text2 = sub2 ? processText(sub2) : '';
     
     // Only add if we have at least one text
     if (!text1 && !text2) continue;
