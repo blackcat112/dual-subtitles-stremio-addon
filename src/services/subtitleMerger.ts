@@ -103,7 +103,7 @@ export function mergeSubtitles(
     let combinedText = text1;
     if (text2) {
       // User specific request: "vuelve a poner dos saltos de linea"
-      combinedText += '\n\n' + text2;
+      combinedText += '\n' + text2;
     }
 
     processedEntries.push({
