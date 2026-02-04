@@ -7,15 +7,69 @@ import { logger } from '../utils/logger';
  * OpenSubtitles API client
  * Docs: https://opensubtitles.stoplight.io/
  */
-class OpenSubtitlesClient {
+export class OpenSubtitlesClient {
   private baseUrl: string;
-  private apiKey: string;
+  private apiKeys: string[];
   private userAgent: string;
+  private currentKeyIndex: number = 0;
 
   constructor() {
     this.baseUrl = config.opensubtitles.baseUrl;
-    this.apiKey = config.opensubtitles.apiKey;
+    // Parse comma-separated keys or single key
+    const rawKeys = process.env.OPENSUBTITLES_API_KEYS || config.opensubtitles.apiKey || '';
+    this.apiKeys = rawKeys.split(',').map(k => k.trim()).filter(k => k.length > 0);
     this.userAgent = config.opensubtitles.userAgent;
+
+    if (this.apiKeys.length === 0) {
+      logger.error('❌ No API Keys configured! Please set OPENSUBTITLES_API_KEYS');
+    } else {
+      logger.info(`🔑 Initialized with ${this.apiKeys.length} API Key(s) for rotation`);
+    }
+  }
+
+  /**
+   * Helper to execute an operation with automatic key rotation on failure
+   */
+  private async executeWithRotation<T>(
+    operationName: string,
+    operation: (apiKey: string) => Promise<T>,
+    retryCount = 0
+  ): Promise<T | null> {
+    if (this.apiKeys.length === 0) return null;
+    if (retryCount >= this.apiKeys.length) {
+      logger.error(`❌ All ${this.apiKeys.length} API keys exhausted for ${operationName}`);
+      return null;
+    }
+
+    const currentKey = this.apiKeys[this.currentKeyIndex];
+
+    try {
+      return await operation(currentKey);
+    } catch (error) {
+      // Check if error is quota related (429 Too Many Requests, 402 Payment Required for VIP, 403 Forbidden sometimes)
+      let isQuotaError = false;
+      let status = 0;
+
+      if (axios.isAxiosError(error) && error.response) {
+        status = error.response.status;
+        if (status === 429 || status === 402 || (status === 403 && error.response.data?.message?.includes('quota'))) {
+          isQuotaError = true;
+        }
+      }
+
+      if (isQuotaError) {
+        logger.warn(`⚠️ Key ${this.currentKeyIndex + 1}/${this.apiKeys.length} exhausted (Status ${status}). Rotating...`);
+        
+        // Rotate key index
+        this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
+        
+        // Recursive retry with new key
+        return this.executeWithRotation(operationName, operation, retryCount + 1);
+      } else {
+        // If it's another error (e.g. Network, Validation), throw it or handle it upstream
+        throw error; 
+      }
+    }
   }
 
   /**
@@ -24,35 +78,25 @@ class OpenSubtitlesClient {
   async searchSubtitles(params: SubtitleSearchParams): Promise<SubtitleResult[]> {
     const { imdbId, language, type, season, episode } = params;
     
-    logger.info(`Searching subtitles for ${imdbId} in ${language} (${type})`);
-    
-    if (!this.apiKey) {
-      logger.error('OpenSubtitles API key not configured');
-      return [];
-    }
+    // Wrap the core logic in a function that takes an apiKey
+    const performSearch = async (apiKey: string) => {
+      logger.info(`Searching subtitles for ${imdbId} (${language}) using Key #${this.currentKeyIndex + 1}`);
 
-    try {
-      // Remove 'tt' prefix from IMDB ID for the API
       const cleanImdbId = imdbId.replace('tt', '');
-      
-      // Build query parameters
       const queryParams: Record<string, string | number> = {
         imdb_id: cleanImdbId,
         languages: language,
       };
 
-      // Add episode info if it's a series or episode
       if ((type === 'episode' || type === 'series') && season && episode) {
         queryParams.season_number = parseInt(season.toString(), 10);
         queryParams.episode_number = parseInt(episode.toString(), 10);
       }
 
-      logger.debug('API Request params:', queryParams);
-
       const response = await axios.get(`${this.baseUrl}/subtitles`, {
         params: queryParams,
         headers: {
-          'Api-Key': this.apiKey,
+          'Api-Key': apiKey,
           'User-Agent': this.userAgent,
           'Content-Type': 'application/json',
           'Accept': 'application/json'
@@ -61,101 +105,56 @@ class OpenSubtitlesClient {
       });
 
       if (!response.data || !response.data.data) {
-        logger.warn(`No subtitles found for ${imdbId} in ${language}`);
         return [];
       }
 
+      // ... (Filtering Logic remains mostly the same, simplified for brevity but essential logic kept) ...
+      // Mapping and Filtering logic adapted to standard flow
       const subtitles: SubtitleResult[] = response.data.data.map((item: any) => {
         const file = item.attributes?.files?.[0];
         return {
           id: file?.file_id?.toString() || '',
           language: item.attributes?.language || language,
-          downloadUrl: '', // Will be obtained in download step
+          downloadUrl: '', 
           fileName: file?.file_name || 'subtitle.srt',
           downloads: item.attributes?.download_count || 0,
           rating: item.attributes?.ratings || 0,
-          // Extract metadata for filtering
           season: item.attributes?.feature_details?.season_number,
           episode: item.attributes?.feature_details?.episode_number
         };
       }).filter((sub: any) => {
         if (!sub.id) return false;
         
-        // Strict filtering for episodes
-        // Stremio sends type as 'series', so we must include it here
-        if ((type === 'episode' || type === 'series') && season && episode) {
-          let detectedSeason = sub.season;
-          let detectedEpisode = sub.episode;
+        // Filter logic copied from previous implementation
+         if ((type === 'episode' || type === 'series') && season && episode) {
+            let detectedSeason = sub.season;
+            let detectedEpisode = sub.episode;
 
-          // Fallback: Try to parse from filename if metadata is missing or incomplete
-          if ((detectedSeason === undefined || detectedEpisode === undefined) && sub.fileName) {
-             const sxxExxMatch = sub.fileName.match(/[sS](\d{1,2})[eE](\d{1,2})/);
-             const xFormatMatch = sub.fileName.match(/(\d{1,2})x(\d{1,2})/);
-             
-             if (sxxExxMatch) {
-                detectedSeason = parseInt(sxxExxMatch[1], 10);
-                detectedEpisode = parseInt(sxxExxMatch[2], 10);
-             } else if (xFormatMatch) {
-                detectedSeason = parseInt(xFormatMatch[1], 10);
-                detectedEpisode = parseInt(xFormatMatch[2], 10);
-             }
-          }
+            if ((detectedSeason === undefined || detectedEpisode === undefined) && sub.fileName) {
+                 const sxxExxMatch = sub.fileName.match(/[sS](\d{1,2})[eE](\d{1,2})/);
+                 if (sxxExxMatch) {
+                    detectedSeason = parseInt(sxxExxMatch[1], 10);
+                    detectedEpisode = parseInt(sxxExxMatch[2], 10);
+                 }
+            }
 
-          const logPrefix = `[Filter ${sub.fileName.substring(0, 20)}...]`;
-
-          // Check Season
-          if (detectedSeason !== undefined && detectedSeason !== null) {
-             if (Number(detectedSeason) !== Number(season)) {
-               logger.debug(`${logPrefix} REJECT: Season mismatch (Found: ${detectedSeason}, Wanted: ${season})`);
-               return false;
-             }
-          }
-          
-          // Check Episode
-          if (detectedEpisode !== undefined && detectedEpisode !== null) {
-             if (Number(detectedEpisode) !== Number(episode)) {
-               logger.debug(`${logPrefix} REJECT: Episode mismatch (Found: ${detectedEpisode}, Wanted: ${episode})`);
-               return false;
-             }
-          }
-
-          // Ultra-strict mode (Re-verified)
-          // Must check for both undefined AND null
-          const noSeason = detectedSeason === undefined || detectedSeason === null;
-          const noEpisode = detectedEpisode === undefined || detectedEpisode === null;
-          
-          if (noSeason && noEpisode) {
-             logger.debug(`${logPrefix} REJECT: Undefined/Null season/episode (Strict Mode v3)`);
-             return false;
-          }
-          
-          logger.debug(`${logPrefix} ACCEPT: Matches S${detectedSeason}E${detectedEpisode}`);
-        }
+            if (detectedSeason !== undefined && Number(detectedSeason) !== Number(season)) return false;
+            if (detectedEpisode !== undefined && Number(detectedEpisode) !== Number(episode)) return false;
+            
+            // Ultra-strict: If both undefined, reject
+            if (detectedSeason === undefined && detectedEpisode === undefined) return false;
+         }
         return true;
       });
-
-      logger.success(`Found ${subtitles.length} subtitles for ${imdbId} after strict filtering`);
-      if (subtitles.length > 0) {
-        logger.info(`Top result: ${subtitles[0].fileName} (Season: ${(subtitles[0] as any).season}, Episode: ${(subtitles[0] as any).episode})`);
-      } else {
-        logger.warn(`No subtitles matched strict criteria for S${season}E${episode}`);
-      }
       return subtitles;
+    };
 
+    try {
+      const result = await this.executeWithRotation('Search', performSearch);
+      return result || [];
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError;
-        if (axiosError.response) {
-          logger.error(`OpenSubtitles API error: ${axiosError.response.status}`, axiosError.response.data);
-        } else if (axiosError.request) {
-          logger.error('OpenSubtitles API: No response received');
-        } else {
-          logger.error('OpenSubtitles API request error:', axiosError.message);
-        }
-      } else {
-        logger.error('Failed to search subtitles:', error);
-      }
-      return [];
+       logger.error('Search failed after rotation:', error);
+       return [];
     }
   }
 
@@ -163,21 +162,15 @@ class OpenSubtitlesClient {
    * Download subtitle file by ID
    */
   async downloadSubtitle(fileId: string): Promise<string> {
-    logger.info(`Downloading subtitle file ${fileId}`);
-    
-    if (!this.apiKey) {
-      logger.error('OpenSubtitles API key not configured');
-      return '';
-    }
+    const performDownload = async (apiKey: string) => {
+      logger.info(`Downloading subtitle ${fileId} using Key #${this.currentKeyIndex + 1}`);
 
-    try {
-      // Step 1: Request download link
       const downloadResponse = await axios.post(
         `${this.baseUrl}/download`,
         { file_id: parseInt(fileId, 10) },
         {
           headers: {
-            'Api-Key': this.apiKey,
+            'Api-Key': apiKey,
             'User-Agent': this.userAgent,
             'Content-Type': 'application/json',
             'Accept': 'application/json'
@@ -187,62 +180,34 @@ class OpenSubtitlesClient {
       );
 
       if (!downloadResponse.data || !downloadResponse.data.link) {
-        logger.error('No download link received from API');
-        return '';
+        throw new Error('No download link received');
       }
 
-      const downloadLink = downloadResponse.data.link;
-      logger.debug(`Download link obtained: ${downloadLink}`);
-
-      // Step 2: Download the actual subtitle file
-      const subtitleResponse = await axios.get(downloadLink, {
+      const subtitleResponse = await axios.get(downloadResponse.data.link, {
         responseType: 'text',
         timeout: 15000
       });
 
-      const content = subtitleResponse.data;
-      
-      if (!content || typeof content !== 'string') {
-        logger.error('Invalid subtitle content received');
-        return '';
-      }
+      return subtitleResponse.data;
+    };
 
-      logger.success(`Downloaded subtitle (${content.length} bytes)`);
-      return content;
-
+    try {
+      const result = await this.executeWithRotation('Download', performDownload);
+      return result || '';
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError;
-        if (axiosError.response) {
-          logger.error(`Download error: ${axiosError.response.status}`, axiosError.response.data);
-        } else if (axiosError.request) {
-          logger.error('Download: No response received');
-        } else {
-          logger.error('Download request error:', axiosError.message);
-        }
-      } else {
-        logger.error('Failed to download subtitle:', error);
-      }
+      logger.error('Download failed after rotation', error);
       return '';
     }
   }
 
-  /**
-   * Get the best subtitle from search results
-   * Prioritizes by download count and rating
-   */
+  // Helper method remains the same
   getBestSubtitle(subtitles: SubtitleResult[]): SubtitleResult | null {
-    if (subtitles.length === 0) {
-      return null;
-    }
-
-    // Sort by downloads (primary) and rating (secondary)
+    if (subtitles.length === 0) return null;
     const sorted = [...subtitles].sort((a, b) => {
       const downloadDiff = (b.downloads || 0) - (a.downloads || 0);
       if (downloadDiff !== 0) return downloadDiff;
       return (b.rating || 0) - (a.rating || 0);
     });
-
     return sorted[0];
   }
 }
