@@ -78,11 +78,11 @@ export class TranslatorService {
         // Note: The library returns { text: string } | { text: string }[] (if input is array)
         // actually for array input it returns an object with text as string (joined) or array?
         // Let's verify standard behavior: usually it returns an array of objects.
-        const res = await translate(chunk, { from, to });
+        const res = await translate(chunk, { from, to }) as any;
         
         // Map results back
         if (Array.isArray(res)) {
-           res.forEach((r, i) => {
+           res.forEach((r: any, i) => {
              results[indices[i]] = r.text;
              // Cache individual results
              const key = `${from}:${to}:${chunk[i]}`;
