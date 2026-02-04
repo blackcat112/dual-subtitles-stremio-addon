@@ -197,7 +197,13 @@ export async function fetchAndTranslateSubtitle(
       logger.info(`✨ Cache hit for Translated Subtitle (${cacheLangKey})`);
       // We also need the sourceSrt to return the pair
       // Ideally we should cache the PAIR or just fetch source again (it's fast/cached)
-      const sourceSrtCached = await fetchSubtitle({ imdbId, language: sourceLang, type, season, episode });
+      const sourceSrtCached = await fetchSubtitle({ 
+        imdbId, 
+        language: sourceLang, 
+        type: type as any, 
+        season, 
+        episode 
+      });
       if (sourceSrtCached) {
          return [sourceSrtCached, cachedTranslated];
       }
