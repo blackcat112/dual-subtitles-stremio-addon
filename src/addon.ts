@@ -1,11 +1,6 @@
 import { addonBuilder } from 'stremio-addon-sdk';
 import { manifest } from './config/manifest';
-import { config } from './config';
 import { logger } from './utils/logger';
-import { subtitleStorage } from './utils/storage';
-import { fetchDualSubtitles } from './services/subtitleFetcher';
-import { mergeSubtitles } from './services/subtitleMerger';
-import { StremioSubtitle } from './types';
 
 // Create addon builder with manifest
 const builder = new addonBuilder(manifest);
@@ -15,27 +10,38 @@ const builder = new addonBuilder(manifest);
  * Docs: https://github.com/Stremio/stremio-addon-sdk/blob/master/docs/api/requests/defineSubtitlesHandler.md
  */
 builder.defineSubtitlesHandler(async ({ type, id }) => {
+  // Stremio ID format: "tt1234567" (movie) or "tt1234567:1:1" (series)
+  const [imdbId, seasonStr, episodeStr] = id.split(':');
+  const season = seasonStr ? parseInt(seasonStr, 10) : 0;
+  const episode = episodeStr ? parseInt(episodeStr, 10) : 0;
+
   logger.info(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-    const baseUrl = process.env.PUBLIC_URL || `http://localhost:${config.port}`;
-    const subtitleUrl = `${baseUrl}/subtitle/${subtitleId}.srt`;
+  logger.info(`🚀 Dual Subtitles Addon (On-Demand Mode)`);
+  logger.info(`📥 MENU REQUEST: ${imdbId} S${season}E${episode}`);
 
-    logger.success(`Merged subtitle ready: ${subtitleUrl}`);
+  // Determine host URL
+  // In production (Render), use the env var. Locally, default to port.
+  // Note: Stremio needs HTTPS for remote addons, but local can be HTTP.
+  const host = process.env.RENDER_EXTERNAL_URL || 'https://dual-subtitles-stremio-addon.onrender.com';
 
-    // Step 6: Return subtitle to Stremio
-    const subtitles: StremioSubtitle[] = [{
-      id: `dual-${lang1}-${lang2}`,
-      lang: `${lang1.toUpperCase()} + ${lang2.toUpperCase()}`,
-      url: subtitleUrl
-    }];
+  const makeSubtitle = (lang1: string, lang2: string, label: string, flags: string) => ({
+    id: `dual-${imdbId}-${lang1}-${lang2}`,
+    url: `${host}/subtitle/${imdbId}/${season}/${episode}/${lang1}/${lang2}`,
+    lang: `Dual ${flags} ${label}`
+  });
 
-    logger.info(`Returning ${subtitles.length} subtitle(s)`);
-    
-    return { subtitles };
+  // Static Offer List (Blind Offer)
+  // We return these options instantly. No API calls made yet.
+  // The user sees these in the list.
+  const subtitles = [
+    makeSubtitle('es', 'fr', 'Español + Français', '🇪🇸 🇫🇷'),
+    makeSubtitle('es', 'en', 'Español + English',  '🇪🇸 🇬🇧'),
+    makeSubtitle('fr', 'en', 'Français + English', '🇫🇷 🇬🇧'),
+  ];
 
-  } catch (error) {
-    logger.error('Error in subtitles handler:', error);
-    return { subtitles: [] };
-  }
+  logger.info(`Returning ${subtitles.length} on-demand options`);
+  
+  return { subtitles };
 });
 
 export default builder.getInterface();
