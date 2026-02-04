@@ -9,5 +9,9 @@ export const manifest: Manifest = {
   types: ["movie", "series"],
   logo: "https://dual-subtitles-stremio-addon.onrender.com/logo.png",
   catalogs: [],
-  idPrefixes: ["tt"]
+  idPrefixes: ["tt"],
+  behaviorHints: {
+    configurable: true,
+    configurationRequired: false
+  }
 };

@@ -26,6 +26,11 @@ app.get('/clear-cache', (req, res) => {
 // Serve static files from public dir
 app.use(express.static('public'));
 
+// Serve configuration page explicitly at /configure
+app.get('/configure', (req, res) => {
+  res.sendFile('configure.html', { root: './public' });
+});
+
 // Dynamic Subtitle Merge Endpoint
 // This is triggered ONLY when the user actually selects a subtitle in Stremio
 app.get('/subtitle/:imdbId/:season/:episode/:lang1/:lang2', async (req, res) => {
