@@ -41,66 +41,85 @@ export class TranslatorService {
   }
 
   /**
-   * Translate an array of subtitle lines efficiently
-   * Ideally, we should batch these to reduce network requests.
-   * However, huge batches might trigger rate limits or size limits.
-   * A safe batch size is around 10-20 lines or ~2000 chars.
+   * Translate an array of subtitle lines efficiently using Native Batching
+   * We pass the array DIRECTLY to the library, which sends fewer HTTP requests.
    */
   async translateBatch(texts: string[], from: string, to: string): Promise<string[]> {
-    logger.info(`Translating batch of ${texts.length} lines from ${from} to ${to}`);
+    logger.info(`Translating ${texts.length} lines from ${from} to ${to} (Native Batching)`);
     
-    // We process sequentially or in small parallel chunks to avoid 429
-    // "google-translate-api-x" requests are independent HTTP calls.
+    // We send chunks of simple text. 
+    // The library handles array inputs: translate([t1, t2], ...).
+    const MAX_CHUNK_SIZE = 50; // Google batch endpoint can handle ~50-100 items usually
+    const results: string[] = new Array(texts.length).fill('');
     
-    const results: string[] = [];
-    const BATCH_SIZE = 10; // Reduced from 50 to 10 to avoid 429 Too Many Requests
-    const CONCURRENCY_DELAY = 100; // Increased delay to be polite
-    
-    // Retry helper
-    const retryOperation = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
+    // Helper to retry chunks
+    const processChunk = async (chunk: string[], indices: number[], retries = 3): Promise<void> => {
       try {
-        return await fn();
+        // Filter out things that don't need translation to save payload size
+        // But we need to maintain index alignment.
+        // The library returns an array of results matching the input array length.
+        
+        let hasContent = false;
+        const cleanChunk = chunk.map(text => {
+           if (text.trim() && !/^\d+$/.test(text.trim())) {
+             hasContent = true;
+             return text;
+           }
+           return ''; // Placeholder for empty/numeric lines we don't want to translate
+        });
+
+        if (!hasContent) {
+           // If chunk is all numbers/empty, just copy original
+           chunk.forEach((txt, i) => { results[indices[i]] = txt; });
+           return;
+        }
+
+        // Native Array Call
+        // Note: The library returns { text: string } | { text: string }[] (if input is array)
+        // actually for array input it returns an object with text as string (joined) or array?
+        // Let's verify standard behavior: usually it returns an array of objects.
+        const res = await translate(chunk, { from, to });
+        
+        // Map results back
+        if (Array.isArray(res)) {
+           res.forEach((r, i) => {
+             results[indices[i]] = r.text;
+             // Cache individual results
+             const key = `${from}:${to}:${chunk[i]}`;
+             this.cache.set(key, r.text);
+           });
+        } else if (res && res.text) {
+           // Single result fallback (shouldn't happen with array input but safety first)
+           results[indices[0]] = res.text;
+        }
+
       } catch (err: any) {
         if (retries > 0 && err?.response?.status === 429) {
-          logger.warn(`⚠️ Translate rate limit (429). Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          return retryOperation(fn, retries - 1, delay * 2);
+           const delay = 2000 + (Math.random() * 1000);
+           logger.warn(`⚠️ Batch 429. Retrying in ${Math.round(delay)}ms...`);
+           await new Promise(r => setTimeout(r, delay));
+           return processChunk(chunk, indices, retries - 1);
         }
-        throw err;
+        
+        // Critical Failure for this chunk
+        logger.error(`Chunk failed permanently: ${err.message}`);
+        // Fallback to original text
+        chunk.forEach((txt, i) => { results[indices[i]] = txt; });
       }
     };
 
-    for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-      const chunk = texts.slice(i, i + BATCH_SIZE);
+    // Create chunks
+    for (let i = 0; i < texts.length; i += MAX_CHUNK_SIZE) {
+      const chunk = texts.slice(i, i + MAX_CHUNK_SIZE);
+      const indices = chunk.map((_, idx) => i + idx);
       
-      const chunkPromises = chunk.map(async (text) => {
-        if (!text.trim() || /^\d+$/.test(text.trim())) return text;
-        
-        // Random delay to distribute requests
-        await new Promise(r => setTimeout(r, Math.random() * CONCURRENCY_DELAY));
-        
-        // Wrap in retry logic
-        return retryOperation(() => this.translateText(text, from, to));
-      });
-
-      try {
-        const chunkResults = await Promise.all(chunkPromises);
-        results.push(...chunkResults);
-      } catch (error) {
-        // If a whole chunk fails after retries, fallback to original text for those lines
-        // to ensure we at least deliver the subtitle structure
-        logger.error('Batch translation chunk failed permanently, using original text as fallback');
-        results.push(...chunk);
-      }
+      await processChunk(chunk, indices);
       
-      // Delay between batches
-      if (i + BATCH_SIZE < texts.length) {
-         await new Promise(r => setTimeout(r, 500));
-      }
-
-      // Log progress periodically
-      if ((i + BATCH_SIZE) % 50 === 0) {
-        logger.debug(`Translated ${results.length}/${texts.length} lines...`);
+      // Small delay between HTTP requests to be polite
+      await new Promise(r => setTimeout(r, 300));
+      
+      if ((i + MAX_CHUNK_SIZE) % 200 === 0) {
+        logger.debug(`Processed ${Math.min(i + MAX_CHUNK_SIZE, texts.length)}/${texts.length} lines`);
       }
     }
     
