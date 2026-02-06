@@ -14,10 +14,15 @@
 
 ### 🚀 Use the Hosted Version (Recommended)
 
-**Install in 2 clicks** - No setup required:
+**No setup required** - Just add the addon URL:
 
-1. Open Stremio
-2. Click this link: **[Install Dual-Subs AI](https://dual-subtitles-stremio-addon.onrender.com/manifest.json)**
+1. **Open Stremio** (desktop or web app)
+2. **Go to Add-ons** (⊕ icon in the top-right or sidebar)
+3. **Paste this URL** in the addon input field:
+   ```
+   https://dual-subtitles-stremio-addon.onrender.com/manifest.json
+   ```
+4. **Click "Install"** and you're done! 🎉
 
 > **⏱️ First-time note:** The first subtitle generation for a new movie/episode takes **10-15 minutes** (to avoid rate limits). After that, it's cached and loads **instantly** for everyone.
 
@@ -246,7 +251,6 @@ You are free to:
 ## 👨‍💻 Author
 
 **Nicolas Becas**
-- 🌐 Portfolio: [nicolasbecas.com](https://nicolasbecas.com)
 - 💼 LinkedIn: [linkedin.com/in/nicolasbecas](https://linkedin.com/in/nicolasbecas)
 - 🐙 GitHub: [@blackcat112](https://github.com/blackcat112)
 
