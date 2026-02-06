@@ -2,9 +2,9 @@ import { Manifest } from "stremio-addon-sdk";
 
 export const manifest: Manifest = {
   id: "org.dualsubtitles.addon",
-  version: "1.6.0",
-  name: "Dual Subtitles (Learn Languages)",
-  description: "Learn languages effortlessly while watching movies & series. Displays two subtitles simultaneously (e.g. Spanish + English). Features Smart Sync & On-Demand loading.",
+  version: "3.0.0",
+  name: "Dual-Subs AI (Perfect Sync)",
+  description: "Subtítulos duales sincronizados por IA. ⚠️ AVISO: La primera vez que pides una peli, tarda 10-15 mins en generarse por seguridad anti-baneo. Ten paciencia, luego es instantáneo.",
   resources: ["subtitles"],
   types: ["movie", "series"],
   logo: "https://dual-subtitles-stremio-addon.onrender.com/logo.png",
