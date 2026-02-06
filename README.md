@@ -1,251 +1,280 @@
-# Dual Subtitles for Stremio
+# 🌍 Dual-Subs AI - Perfect Sync Subtitles for Stremio
 
-> Learn languages with dual subtitles - display two subtitle languages simultaneously
+> **Master languages effortlessly** with AI-powered, perfectly synchronized dual subtitles.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Node Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
-[![Phase](https://img.shields.io/badge/Phase-2%2F7%20Complete-success)](https://github.com/blackcat112/dual-subtitles-stremio-addon)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
+[![Stremio Addon](https://img.shields.io/badge/Stremio-Addon-purple)](https://www.stremio.com/)
 
-**🚀 Development Status:** Phase 1 (Setup) ✅ | Phase 2 (API Integration) ✅ | Phase 3 (In Progress) 🔄
-
-**Repository:** [github.com/blackcat112/dual-subtitles-stremio-addon](https://github.com/blackcat112/dual-subtitles-stremio-addon)
+![Dual Subtitles in Action](public/captura.png)
 
 ---
 
-## 🎯 Problem
+## 🎯 Quick Start
 
-When learning a new language (like French), it's incredibly helpful to watch series and movies with subtitles in **both** your native language (Spanish) and the language you're learning (French) displayed simultaneously. Unfortunately, most existing solutions like Strelingo and MultiSub have functionality or availability issues.
+### 🚀 Use the Hosted Version (Recommended)
 
-This addon solves that problem by fetching subtitles from OpenSubtitles and merging them into a single dual-language subtitle file that Stremio can display.
+**Install in 2 clicks** - No setup required:
 
----
+1. Open Stremio
+2. Click this link: **[Install Dual-Subs AI](https://dual-subtitles-stremio-addon.onrender.com/manifest.json)**
 
-> [!IMPORTANT]
-> **Demo/Portfolio Project:** This addon uses OpenSubtitles.com free tier API (5 downloads/day limit). It's designed as a **proof of concept** and portfolio piece. For production use with multiple users, a paid API plan would be required.
+> **⏱️ First-time note:** The first subtitle generation for a new movie/episode takes **10-15 minutes** (to avoid rate limits). After that, it's cached and loads **instantly** for everyone.
 
 ---
 
 ## ✨ Features
 
-- **Dual Language Learning**: Display two subtitle languages simultaneously (e.g., Spanish + French)
-- **Automatic Subtitle Fetching**: Retrieves subtitles from OpenSubtitles API
-- **Smart Merging**: Combines two SRT files with synchronized timestamps
-- **Intelligent Caching**: 24-hour cache reduces API calls and improves performance
-- **Support for Movies & Series**: Works with both IMDB movies and TV show episodes
-- **Easy Installation**: Simple manifest URL installation in Stremio
+### 🤖 **Perfect Synchronization (AI-Powered)**
+- **One Source, Perfect Sync**: Downloads a single high-quality subtitle and translates it line-by-line using AI
+- **Zero Timing Gaps**: Unlike dual-file approaches, translation ensures timestamps are **mathematically identical**
+- **Smart Caching**: 24-hour cache means subsequent loads are instant
 
-## ⚠️ Current Limitations
+### 🌐 **Supported Language Pairings**
+| Base Language | Translated To |
+|--------------|---------------|
+| 🇪🇸 **Spanish** | English, Français |
+| 🇬🇧 **English** | Español, Français |
 
-**OpenSubtitles Free Tier:**
-- **5 downloads per day** (resets every 24 hours)
-- **2 downloads per content** (one per language)
-- **~2-3 different movies/episodes testable per day**
+### 🎨 **Visual Design**
+- **Side-by-Side Layout**: `Original Text | Translated Text`
+- **Italics Differentiation**: Secondary language is styled in *italics* for easy distinction
+- **Optimized Padding**: Fixed-width columns for visual alignment
 
-**Cache system mitigates this:**
-- First viewing: 2 downloads (ES + FR)
-- Repeat viewings (24h): 0 downloads (served from cache)
-- Popular content benefits most (multiple users share cache)
-
-**For portfolio demonstrations:** The free tier is sufficient for showcasing functionality to recruiters and peers.
-
-**For production use:** Upgrade to OpenSubtitles paid plan:
-- **Light Plan:** $20/month, 2,000 downloads/day (~1,000 contents)
-- See: https://www.opensubtitles.com/en/consumers/apikeyable matching
-- 🔄 **Phase 2+**: User configuration, offset adjustment, caching (coming soon)
+### ⚙️ **Technical Highlights**
+- **On-Demand Loading**: Only generates subtitles when you click play (saves API quota)
+- **API Key Rotation**: Built-in rotation across 8+ OpenSubtitles keys for high availability
+- **Retry Logic**: Exponential backoff for translation rate limits (429 errors)
+- **Anti-Sleep**: Keeps Render free tier alive with periodic health pings
 
 ---
 
-## 🚀 Installation
+## 🛠️ How It Works
+
+### Architecture Overview
+
+```mermaid
+graph LR
+    A[Stremio Player] -->|1. Subtitle Request| B[Dual-Subs Server]
+    B -->|2. Fetch Source SRT| C[OpenSubtitles API]
+    C -->|3. Best Match| B
+    B -->|4. Translate Text| D[Google Translate AI]
+    D -->|5. Translated Lines| B
+    B -->|6. Merge & Format| E[Side-by-Side SRT]
+    E -->|7. Serve| A
+```
+
+### Translation Pipeline
+
+1. **Download**: Fetch the best subtitle file for the base language (e.g., Spanish)
+2. **Parse**: Extract text and timestamps using SRT parser
+3. **Translate**: Send text in batches to Google Translate (3 lines/batch, 400ms delay)
+4. **Reconstruct**: Create a "virtual" translated SRT using the **exact same timestamps**
+5. **Merge**: Combine both SRTs side-by-side with visual formatting
+6. **Cache**: Store for 24h to speed up future requests
+
+---
+
+## 📸 Screenshots
+
+### In-App Experience
+The addon appears in Stremio's subtitle menu with clear language indicators:
+
+```
+Dual 🇪🇸 🇬🇧  [ES] Español ➜ English (AI)
+Dual 🇪🇸 🇫🇷  [ES] Español ➜ Français (AI)
+Dual 🇬🇧 🇪🇸  [EN] English ➜ Español (AI)
+Dual 🇬🇧 🇫🇷  [EN] English ➜ Français (AI)
+```
+
+### Playback Result
+![Side-by-Side Subtitles](public/captura.png)
+
+---
+
+## � Self-Hosting (For Developers)
 
 ### Prerequisites
+- Node.js ≥ 18.0.0
+- **OpenSubtitles API Key(s)** ([Get one here](https://www.opensubtitles.com/en/consumers))
 
-- Node.js >= 18.0.0
-- npm or yarn
-- OpenSubtitles API key ([Get one here](https://www.opensubtitles.com/en/consumers))
+### Installation
 
-### Setup
+```bash
+# Clone the repository
+git clone https://github.com/blackcat112/dual-subtitles-stremio-addon.git
+cd dual-subtitles-addon
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd dual-subtitles-addon
-   ```
+# Install dependencies
+npm install
 
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
+# Configure environment
+cp .env.example .env
+# Edit .env and add your OpenSubtitles API key(s)
+```
 
-3. **Configure environment variables**:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your OPENSUBTITLES_API_KEY
-   ```
+### Configuration
 
-4. **Build the project**:
-   ```bash
-   npm run build
-   ```
+Edit `.env`:
 
-5. **Start the addon**:
-   ```bash
-   npm start
-   ```
+```bash
+# Single key (basic)
+OPENSUBTITLES_API_KEY=your_api_key_here
 
-   For development with auto-reload:
-   ```bash
-   npm run dev
-   ```
+# Multiple keys for rotation (recommended)
+OPENSUBTITLES_API_KEYS=key1,key2,key3,key4,key5,key6,key7,key8
 
----
+# Optional: Custom port
+PORT=7001
+```
 
-## 📋 Usage
+### Running Locally
 
-Once the addon is running:
+```bash
+# Development mode (with hot reload)
+npm run dev
 
-1. Visit: `http://localhost:7001/manifest.json`
-2. Copy the URL
-3. Open Stremio
-4. Go to Addons → Install addon from URL
-5. Paste the URL and install
-6. Enjoy dual subtitles when watching content!
+# Production build
+npm run build
+npm start
+```
 
----
+The addon will be available at `http://localhost:7001/manifest.json`
 
-## 🛠️ Tech Stack
+### Deployment to Render (Free Tier)
 
-### Backend
-- **Runtime**: Node.js with TypeScript (strict mode)
-- **Framework**: Stremio Addon SDK (official)
-- **Server**: Express.js
-- **Subtitle Source**: OpenSubtitles API v1
-
-### Key Libraries
-- `stremio-addon-sdk`: Core addon framework
-- `srt-parser-2`: SRT file parsing and manipulation
-- `axios`: HTTP requests to OpenSubtitles API
-- `dotenv`: Environment variable management
+1. Fork this repository
+2. Connect to [Render](https://render.com)
+3. Create a new **Web Service**
+4. Use these settings:
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start`
+   - **Environment Variables**: Add `OPENSUBTITLES_API_KEYS`
+5. Deploy and use the provided URL
 
 ---
 
-## 📁 Project Structure
+## 🧪 Technical Stack
+
+| Component | Technology |
+|-----------|-----------|
+| **Runtime** | Node.js + TypeScript |
+| **Framework** | Express.js + Stremio SDK |
+| **Subtitle Source** | OpenSubtitles REST API |
+| **Translation** | google-translate-api-x (unofficial) |
+| **Parsing** | srt-parser-2 |
+| **Caching** | In-memory (24h TTL) |
+| **Deployment** | Render.com (Free Tier) |
+
+---
+
+## � Project Structure
 
 ```
 dual-subtitles-addon/
 ├── src/
-│   ├── addon.ts              # Main addon logic
-│   ├── server.ts             # HTTP server entry point
+│   ├── addon.ts              # Stremio addon handler (menu generation)
+│   ├── server.ts             # Express server (subtitle serving)
 │   ├── config/
-│   │   ├── index.ts          # Configuration loader
-│   │   └── manifest.ts       # Stremio manifest definition
+│   │   └── manifest.ts       # Addon metadata
 │   ├── services/
-│   │   ├── opensubtitles.ts  # OpenSubtitles API client
-│   │   └── subtitleMerger.ts # Subtitle merge algorithm
-│   ├── utils/
-│   │   ├── srtParser.ts      # SRT parsing utilities
-│   │   └── logger.ts         # Logging system
-│   └── types/
-│       ├── index.ts          # Custom TypeScript types
-│       └── stremio-addon-sdk.d.ts  # SDK type definitions
-├── dist/                     # Compiled JavaScript (generated)
-├── .env.example              # Environment variables template
-├── package.json
-└── tsconfig.json
+│   │   ├── opensubtitles.ts  # API client with key rotation
+│   │   ├── translator.ts     # Google Translate integration
+│   │   ├── subtitleFetcher.ts # Download & translation orchestration
+│   │   └── subtitleMerger.ts  # Side-by-side formatting
+│   └── utils/
+│       ├── cache.ts          # In-memory caching
+│       ├── srtParser.ts      # SRT parsing/serialization
+│       └── logger.ts         # Colored logging
+├── public/
+│   ├── logo.png              # Addon icon
+│   ├── captura.png           # Screenshot
+│   └── configure.html        # Configuration page
+└── package.json
 ```
 
 ---
 
-## 🔧 Development
+## ⚠️ Known Limitations
 
-### Available Scripts
+### Translation Rate Limits
+- Google Translate (unofficial API) has aggressive rate limiting
+- **First-time generation**: 10-15 minutes for an 800-line subtitle
+- **Mitigation**: Conservative batching (3 lines/request, 400ms delay) + retry logic
+- **User impact**: First user to request a specific movie waits; everyone else gets instant cache
 
-```bash
-npm run dev          # Start development server with ts-node
-npm run dev:launch   # Start dev server and launch Stremio
-npm run build        # Compile TypeScript to JavaScript
-npm run watch        # Watch mode for TypeScript compiler
-npm run lint         # Type-check without emitting files
-npm start            # Start production server (requires build first)
-```
+### OpenSubtitles API Quota
+- Free tier: **5 downloads/day** per key
+- **Solution**: Use multiple API keys (rotation logic included)
+- Quality varies by language/release
 
-### Development Status
-
-**✅ Phase 1: Setup and Configuration (COMPLETED)**
-- ✅ TypeScript project structure
-- ✅ Core modules and utilities
-- ✅ SRT parser and merger
-- ✅ Stremio addon skeleton
-- ✅ Local testing successful
-
-**✅ Phase 2: OpenSubtitles API Integration (COMPLETED)**
-- ✅ API client implementation
-- ✅ Subtitle search and download
-- ✅ Error handling and rate limits
-- ✅ In-memory caching system
-- ✅ Dual subtitle fetcher
-- ✅ Comprehensive testing
-
-**🔄 Phase 3: Stremio Integration (IN PROGRESS)**
-- [ ] Complete addon handler implementation
-- [ ] HTTP endpoint for merged subtitles
-- [ ] Full integration testing in Stremio
-- [ ] Subtitle synchronization validation
-
-**⏳ Upcoming Phases**:
-- Phase 4: User configuration features
-- Phase 5: Production deployment
-- Phase 6: Documentation and portfolio
-
----
-
-## 🧪 Testing
-
-To test the addon locally:
-
-```bash
-# Start the development server
-npm run dev
-
-# In another terminal, test the manifest
-curl http://localhost:7001/manifest.json
-
-# Install in Stremio using:
-# http://localhost:7001/manifest.json
-```
+### Cache Persistence
+- Uses in-memory cache (resets on server restart)
+- For production: Consider Redis or file-based cache
 
 ---
 
 ## 🤝 Contributing
 
-This is a personal portfolio project, but suggestions and feedback are welcome! Feel free to open an issue or reach out.
+Contributions are welcome! Here's how:
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### Development Tips
+- Use `npm run dev` for auto-reloading
+- Test with `npm run test:api` to verify OpenSubtitles connection
+- Check TypeScript errors with `npm run lint`
 
 ---
 
-## 📝 License
+## 📜 License
 
-MIT License - see [LICENSE](LICENSE) for details
+This project is licensed under the **MIT License** - see [LICENSE](LICENSE) file for details.
 
----
-
-## 🎓 About
-
-This project was created as part of my Computer Engineering degree to demonstrate:
-
-- ✅ Fullstack development skills
-- ✅ Problem-solving with real-world applications
-- ✅ TypeScript expertise with Node.js
-- ✅ External API integration (OpenSubtitles)
-- ✅ Professional documentation and code quality
+You are free to:
+- ✅ Use commercially
+- ✅ Modify
+- ✅ Distribute
+- ✅ Private use
 
 ---
 
-## 🔗 Links
+## 👨‍💻 Author
 
-- [Stremio Addon SDK Documentation](https://github.com/Stremio/stremio-addon-sdk)
-- [OpenSubtitles API Documentation](https://opensubtitles.stoplight.io/)
-- [SRT Format Specification](https://en.wikipedia.org/wiki/SubRip)
+**Nicolas Becas**
+- 🌐 Portfolio: [nicolasbecas.com](https://nicolasbecas.com)
+- 💼 LinkedIn: [linkedin.com/in/nicolasbecas](https://linkedin.com/in/nicolasbecas)
+- 🐙 GitHub: [@blackcat112](https://github.com/blackcat112)
 
 ---
 
-**Made with ❤️ for language learners**
+## ⭐ Support
+
+If this addon helped you learn a new language or improved your viewing experience:
+- ⭐ **Star this repo** on GitHub
+- 🐛 **Report bugs** via [Issues](https://github.com/blackcat112/dual-subtitles-stremio-addon/issues)
+- 💡 **Suggest features** for future updates
+
+---
+
+## � Acknowledgments
+
+- [Stremio](https://www.stremio.com/) for the amazing platform
+- [OpenSubtitles](https://www.opensubtitles.com/) for subtitle data
+- [google-translate-api-x](https://github.com/AidanWelch/google-translate-api) for free translation
+
+---
+
+## 📢 Disclaimer
+
+This addon uses **unofficial/scraping-based** Google Translate API. It is:
+- ✅ Free
+- ✅ Legal for personal use
+- ⚠️ Not suitable for high-volume commercial use
+- ⚠️ Subject to rate limiting by Google
+
+For production-grade translation, consider using [Google Cloud Translation API](https://cloud.google.com/translate).
