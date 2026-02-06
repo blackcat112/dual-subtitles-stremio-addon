@@ -34,15 +34,13 @@ builder.defineSubtitlesHandler(async ({ type, id }) => {
   // We return these options instantly. No API calls made yet.
   // The user sees these in the list.
   const subtitles = [
-    // 🤖 Perfect Sync (Auto-Translation)
-    makeSubtitle('es', 'fr_auto', '🇪🇸 ➜ 🇫🇷 (Auto-Sync)', '🇪🇸 🤖 🇫🇷'),
-    makeSubtitle('es', 'en_auto', '🇪🇸 ➜ 🇬🇧 (Auto-Sync)', '🇪🇸 🤖 🇬🇧'),
-    makeSubtitle('en', 'es_auto', '🇬🇧 ➜ 🇪🇸 (Auto-Sync)', '🇬🇧 🤖 🇪🇸'),
-    
-    // 👥 Standard Dual (Original Files - Best Effort)
-    makeSubtitle('es', 'fr', 'Español + Français (Original)', '🇪🇸 🇫🇷'),
-    makeSubtitle('es', 'en', 'Español + English (Original)',  '🇪🇸 🇬🇧'),
-    makeSubtitle('fr', 'en', 'Français + English (Original)', '🇫🇷 🇬🇧'),
+    // 🇪🇸 BASE ESPAÑOL (Mejor calidad en ES)
+    makeSubtitle('es', 'en_auto', '🇪🇸 ➜ 🇬🇧 (Traducido)', '🇪🇸 🤖 🇬🇧'),
+    makeSubtitle('es', 'fr_auto', '🇪🇸 ➜ 🇫🇷 (Traducido)', '🇪🇸 🤖 🇫🇷'),
+
+    // 🇬🇧 BASE ENGLISH (Best quality in EN)
+    makeSubtitle('en', 'es_auto', '🇬🇧 ➜ 🇪🇸 (Translated)', '🇬🇧 🤖 🇪🇸'),
+    makeSubtitle('en', 'fr_auto', '🇬🇧 ➜ 🇫🇷 (Translated)', '🇬🇧 🤖 🇫🇷'),
   ];
 
   logger.info(`Returning ${subtitles.length} on-demand options`);

@@ -1,157 +1,116 @@
 import { translate } from 'google-translate-api-x';
 import { logger } from '../utils/logger';
-import { MicrosoftTranslatorClient } from './microsoftTranslator';
 
+/**
+ * Service to handle text translation using Google Translate (Unofficial/Free)
+ * Includes caching and simple rate limiting/batching
+ */
 export class TranslatorService {
   private cache: Map<string, string> = new Map();
-  private msClient: MicrosoftTranslatorClient | null = null;
+  // Simple in-memory cache. 
+  // In production with high load, we might want Redis or file-based cache.
+  
+  constructor() {}
 
-  constructor() {
-    const msKey = process.env.MICROSOFT_TRANSLATOR_KEY;
-    const msRegion = process.env.MICROSOFT_TRANSLATOR_REGION || 'global';
+  /**
+   * Translate a single string
+   */
+  async translateText(text: string, from: string, to: string): Promise<string> {
+    const key = `${from}:${to}:${text}`;
     
-    if (msKey) {
-      this.msClient = new MicrosoftTranslatorClient(msKey, msRegion);
-      logger.info('🚀 Microsoft Translator API Enabled (Premium Mode)');
-    } else {
-      logger.info('🐢 Using Google Translate Fallback (Free Mode - Limited)');
+    if (this.cache.has(key)) {
+      return this.cache.get(key)!;
+    }
+
+    try {
+      // Map common codes if necessary (e.g. 'es' is standard)
+      // google-translate-api-x usually handles standard ISO 639-1
+      
+      const res = await translate(text, { from, to });
+      
+      if (res && res.text) {
+        this.cache.set(key, res.text);
+        return res.text;
+      }
+      
+      return text; // Fallback to original
+    } catch (error) {
+      logger.error(`Translation failed for: "${text.substring(0, 20)}..."`, error);
+      return text; // Return original on error to not break the app
     }
   }
 
   /**
-   * Main entry point: Translates a batch of texts
-   * Automatically selects best provider (Microsoft if available, otherwise Google)
+   * Translate an array of subtitle lines efficiently using Native Batching
+   * We pass the array DIRECTLY to the library, which sends fewer HTTP requests.
    */
   async translateBatch(texts: string[], from: string, to: string): Promise<{ translated: string[], errorCount: number }> {
-    // 1. Try Microsoft API if configured
-    if (this.msClient) {
-      return this.translateBatchMicrosoft(texts, from, to);
-    }
-
-    // 2. Fallback to Google (Safe Sequential Mode)
-    return this.translateBatchGoogle(texts, from, to);
-  }
-
-  /**
-   * Microsoft API Implementation
-   * Reliable, fast, supports batches up to 100 items (we use 25 to be safe)
-   */
-  private async translateBatchMicrosoft(texts: string[], from: string, to: string): Promise<{ translated: string[], errorCount: number }> {
-    logger.info(`Translating ${texts.length} lines with Microsoft API...`);
+    logger.info(`Translating ${texts.length} lines from ${from} to ${to} (Native Batching)`);
     
-    const BATCH_SIZE = 25; // Microsoft allows up to 100, keeping it safe
+    // Low batch size and high delay to be extremely safe with free API
+    const MAX_CHUNK_SIZE = 3; 
     const results: string[] = new Array(texts.length).fill('');
     let errorCount = 0;
-
-    for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-      const chunk = texts.slice(i, i + BATCH_SIZE);
-      const indices = chunk.map((_, idx) => i + idx);
-
+    
+    // Helper to retry chunks
+    const processChunk = async (chunk: string[], indices: number[], retries = 5): Promise<void> => {
       try {
-        // Filter out empty lines to save quota and avoid API errors
-        // We keep track of indices to map back correctly
-        const validItems: { text: string, originalIdx: number }[] = [];
-        
-        chunk.forEach((text, idx) => {
-          if (text.trim() && !/^\d+$/.test(text.trim())) {
-            validItems.push({ text, originalIdx: indices[idx] });
-          } else {
-            results[indices[idx]] = text; // Copy non-translatable directly
-          }
+        let hasContent = false;
+        const cleanChunk = chunk.map(text => {
+           if (text.trim() && !/^\d+$/.test(text.trim())) {
+             hasContent = true;
+             return text;
+           }
+           return ''; 
         });
 
-        if (validItems.length > 0) {
-          const textsToTranslate = validItems.map(item => item.text);
-          const translatedTexts = await this.msClient!.translateBatch(textsToTranslate, from, to);
-          
-          // Map back to results
-          translatedTexts.forEach((trans, idx) => {
-            results[validItems[idx].originalIdx] = trans;
-            
-            // Cache success
-            const key = `${from}:${to}:${validItems[idx].text}`;
-            this.cache.set(key, trans);
-          });
+        if (!hasContent) {
+           chunk.forEach((txt, i) => { results[indices[i]] = txt; });
+           return;
         }
 
-      } catch (error) {
-        logger.error('Microsoft API Batch Failed', error);
-        errorCount += chunk.length;
-        // Fallback: Copy original text for this chunk so index alignment isn't broken
-        chunk.forEach((txt, idx) => { results[indices[idx]] = txt; });
-      }
-    }
+        const res = await translate(cleanChunk, { from, to, forceBatch: false }) as any;
+        
+        if (Array.isArray(res)) {
+           res.forEach((r: any, i) => {
+             results[indices[i]] = r.text;
+             const key = `${from}:${to}:${chunk[i]}`;
+             this.cache.set(key, r.text);
+           });
+        } else if (res && res.text) {
+           results[indices[0]] = res.text;
+        }
 
-    return { translated: results, errorCount };
-  }
-
-  /**
-   * Google Translate (Sequential Mode)
-   * The fallback implementation for free users. Slow but functional-ish.
-   */
-  private async translateBatchGoogle(texts: string[], from: string, to: string): Promise<{ translated: string[], errorCount: number }> {
-    logger.info(`Translating ${texts.length} lines from ${from} to ${to} (Google Sequential Mode)`);
-    
-    const CONCURRENCY = 2; 
-    const DELAY_BETWEEN_ITEMS = 300; // ms
-    
-    const results: string[] = new Array(texts.length).fill('');
-    let errorCount = 0;
-    
-    const processItem = async (text: string, index: number, retries = 3): Promise<void> => {
-      // Check internal cache first (in-memory)
-      const key = `${from}:${to}:${text}`;
-      if (this.cache.has(key)) {
-        results[index] = this.cache.get(key)!;
-        return;
-      }
-
-      // Skip empty/numbers
-      if (!text.trim() || /^\d+$/.test(text.trim())) {
-        results[index] = text;
-        return;
-      }
-
-      try {
-        const translated = await this.translateTextGoogleSingle(text, from, to);
-        results[index] = translated;
-        this.cache.set(key, translated);
       } catch (err: any) {
-        if (retries > 0) {
-           const delay = 1000 * (4 - retries); 
+        if (retries > 0 && err?.response?.status === 429) {
+           const delay = 3000 + (Math.random() * 2000); // 3-5s wait
+           logger.warn(`⚠️ Batch 429. Retrying in ${Math.round(delay)}ms...`);
            await new Promise(r => setTimeout(r, delay));
-           return processItem(text, index, retries - 1);
+           return processChunk(chunk, indices, retries - 1);
         }
-        logger.warn(`Failed line ${index}: ${text.substring(0, 15)}...`);
-        results[index] = text; // Fallback
+        
+        logger.error(`Chunk failed permanently: ${err.message}`);
+        chunk.forEach((txt, i) => { results[indices[i]] = txt; });
         errorCount++;
       }
     };
 
-    // Process loop
-    for (let i = 0; i < texts.length; i += CONCURRENCY) {
-      const batch = texts.slice(i, i + CONCURRENCY);
-      const promises = batch.map((text, idx) => processItem(text, i + idx));
+    // Create chunks
+    for (let i = 0; i < texts.length; i += MAX_CHUNK_SIZE) {
+      const chunk = texts.slice(i, i + MAX_CHUNK_SIZE);
+      const indices = chunk.map((_, idx) => i + idx);
       
-      await Promise.all(promises);
-      await new Promise(r => setTimeout(r, DELAY_BETWEEN_ITEMS));
+      await processChunk(chunk, indices);
       
-      if (i % 50 === 0) logger.debug(`Progress: ${i}/${texts.length}`);
+      // Significant delay between HTTP requests
+      await new Promise(r => setTimeout(r, 400));
+      
+      if ((i + MAX_CHUNK_SIZE) % 50 === 0) {
+        logger.debug(`Processed ${Math.min(i + MAX_CHUNK_SIZE, texts.length)}/${texts.length} lines`);
+      }
     }
     
     return { translated: results, errorCount };
-  }
-
-  // Wrapper for single google call
-  private async translateTextGoogleSingle(text: string, from: string, to: string): Promise<string> {
-    const res = await translate(text, { from, to, forceBatch: false });
-    return res.text;
-  }
-
-  // Legacy single translation method (kept for compatibility just in case)
-  async translateText(text: string, from: string, to: string): Promise<string> {
-    const { translated } = await this.translateBatch([text], from, to);
-    return translated[0];
   }
 }
 
