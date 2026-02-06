@@ -34,13 +34,13 @@ builder.defineSubtitlesHandler(async ({ type, id }) => {
   // We return these options instantly. No API calls made yet.
   // The user sees these in the list.
   const subtitles = [
-    // 🇪🇸 BASE ESPAÑOL (Mejor calidad en ES)
-    makeSubtitle('es', 'en_auto', '🇪🇸 ➜ 🇬🇧 (Traducido)', '🇪🇸 🤖 🇬🇧'),
-    makeSubtitle('es', 'fr_auto', '🇪🇸 ➜ 🇫🇷 (Traducido)', '🇪🇸 🤖 🇫🇷'),
+    // 🇪🇸 BASE ESPAÑOL
+    makeSubtitle('es', 'en_auto', '[ES] Español ➜ English ', '🇪🇸 🇬🇧'),
+    makeSubtitle('es', 'fr_auto', '[ES] Español ➜ Français ', '🇪🇸 🇫🇷'),
 
-    // 🇬🇧 BASE ENGLISH (Best quality in EN)
-    makeSubtitle('en', 'es_auto', '🇬🇧 ➜ 🇪🇸 (Translated)', '🇬🇧 🤖 🇪🇸'),
-    makeSubtitle('en', 'fr_auto', '🇬🇧 ➜ 🇫🇷 (Translated)', '🇬🇧 🤖 🇫🇷'),
+    // 🇬🇧 BASE ENGLISH
+    makeSubtitle('en', 'es_auto', '[EN] English ➜ Español ', '🇬🇧 🇪🇸'),
+    makeSubtitle('en', 'fr_auto', '[EN] English ➜ Français ', '🇬🇧 🇫🇷'),
   ];
 
   logger.info(`Returning ${subtitles.length} on-demand options`);
