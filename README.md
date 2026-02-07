@@ -34,7 +34,7 @@
 
 ## ✨ Features
 
-### 🤖 **Perfect Synchronization (AI-Powered)**
+### **Perfect Synchronization (AI-Powered)**
 - **One Source, Perfect Sync**: Downloads a single high-quality subtitle and translates it line-by-line using AI
 - **Zero Timing Gaps**: Unlike dual-file approaches, translation ensures timestamps are **mathematically identical**
 - **Smart Caching**: 24-hour cache means subsequent loads are instant
@@ -278,13 +278,3 @@ If this addon helped you learn a new language or improved your viewing experienc
 - [google-translate-api-x](https://github.com/AidanWelch/google-translate-api) for free translation
 
 ---
-
-## 📢 Disclaimer
-
-This addon uses **unofficial/scraping-based** Google Translate API. It is:
-- ✅ Free
-- ✅ Legal for personal use
-- ⚠️ Not suitable for high-volume commercial use
-- ⚠️ Subject to rate limiting by Google
-
-For production-grade translation, consider using [Google Cloud Translation API](https://cloud.google.com/translate).

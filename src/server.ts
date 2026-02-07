@@ -150,13 +150,6 @@ app.listen(config.port, () => {
   logger.info(`💡 To install in Stremio, use: http://localhost:${config.port}/manifest.json`);
   logger.info('');
 
-  // Log configuration status  
-  if (config.opensubtitles.apiKey) {
-    logger.success('✅ OpenSubtitles API key configured');
-  } else {
-    logger.warn('⚠️  OpenSubtitles API key NOT configured');
-    logger.warn('   Set OPENSUBTITLES_API_KEY in .env file');
-  }
 
   // Keep-Alive Logic for Render Free Tier
   // Render spins down inactive web services after 15 minutes.
