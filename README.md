@@ -98,6 +98,8 @@ Dual 🇬🇧 🇫🇷  [EN] English ➜ Français (AI)
 
 ### Playback Result
 ![Side-by-Side Subtitles](public/captura.png)
+---
+![Side-by-Side Subtitles](public/capturaEs-EN.png)
 
 ---
 
