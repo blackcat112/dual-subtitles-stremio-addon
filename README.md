@@ -1,10 +1,14 @@
-# 🌍 Dual-Subs AI - Perfect Sync Subtitles for Stremio
+<div align="center">
 
-> **Master languages effortlessly** with AI-powered, perfectly synchronized dual subtitles.
+![Dual-Subs Banner](public/banner.png)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 [![Stremio Addon](https://img.shields.io/badge/Stremio-Addon-purple)](https://www.stremio.com/)
+
+**Master languages effortlessly with AI-powered, perfectly synchronized dual subtitles.**
+
+</div>
 
 ![Dual Subtitles in Action](public/captura.png)
 
