@@ -219,6 +219,7 @@ export class OpenSubtitlesClient {
    * - Recent uploads (likely corrections of earlier subs)
    * - Ratings (user feedback)
    * - Downloads (popularity, but less weighted)
+   * - Release info richness (BluRay, WEB-DL, FPS, etc.)
    */
   getBestSubtitle(subtitles: SubtitleResult[]): SubtitleResult | null {
     if (subtitles.length === 0) return null;
@@ -256,22 +257,73 @@ export class OpenSubtitlesClient {
         score += rating * 4; // Scale 0-5 rating to 0-20 points
       }
       
-      // 4. Downloads (least important, but still a signal)
+      // 4. Release info richness (critical for sync quality)
+      const fileName = sub.fileName?.toLowerCase() || '';
+      let releaseScore = 0;
+      
+      // Common release types (higher specificity = better match likelihood)
+      const releaseTypes = [
+        { pattern: /bluray|blu-ray|bdrip|brrip/i, points: 8, name: 'BluRay' },
+        { pattern: /web-?dl|webdl/i, points: 8, name: 'WEB-DL' },
+        { pattern: /webrip|web-rip/i, points: 7, name: 'WEBRip' },
+        { pattern: /hdtv|hd-tv/i, points: 7, name: 'HDTV' },
+        { pattern: /dvdrip|dvd-rip/i, points: 6, name: 'DVDRip' },
+      ];
+      
+      // FPS info (helps with PAL/NTSC conversions)
+      if (/23\.97|23\.976|24\.00|25\.00|29\.97|30\.00/i.test(fileName)) {
+        releaseScore += 5;
+      }
+      
+      // Resolution info
+      if (/1080p|720p|2160p|4k/i.test(fileName)) {
+        releaseScore += 3;
+      }
+      
+      // Codec info
+      if (/x264|x265|h264|h265|hevc/i.test(fileName)) {
+        releaseScore += 2;
+      }
+      
+      // Check for release type
+      for (const release of releaseTypes) {
+        if (release.pattern.test(fileName)) {
+          releaseScore += release.points;
+          break; // Only count one release type
+        }
+      }
+      
+      score += releaseScore;
+      
+      // 5. Downloads (least important, but still a signal)
       const downloads = sub.downloads || 0;
       const maxDownloads = Math.max(...subtitles.map(s => s.downloads || 0));
       if (maxDownloads > 0) {
         score += (downloads / maxDownloads) * 10; // Normalized 0-10 points
       }
       
-      return { sub, score };
+      return { sub, score, releaseScore };
     });
     
     // Sort by score descending
     scored.sort((a, b) => b.score - a.score);
     
     const best = scored[0];
-    logger.info(`Selected subtitle with score ${best.score.toFixed(1)}: ${best.sub.fileName}`);
-    logger.debug(`  Rank: ${best.sub.uploaderRank || 'none'}, Uploads: ${best.sub.downloads}, Rating: ${best.sub.rating}, Date: ${best.sub.uploadDate || 'unknown'}`);
+    const topThree = scored.slice(0, 3);
+    
+    logger.info(`📊 Selected subtitle with score ${best.score.toFixed(1)}: ${best.sub.fileName}`);
+    logger.debug(`   ├─ Uploader: ${best.sub.uploaderRank || 'none'}`);
+    logger.debug(`   ├─ Downloads: ${best.sub.downloads}, Rating: ${best.sub.rating}`);
+    logger.debug(`   ├─ Upload date: ${best.sub.uploadDate || 'unknown'}`);
+    logger.debug(`   └─ Release info score: ${best.releaseScore}/18`);
+    
+    // Log alternatives for debugging
+    if (topThree.length > 1) {
+      logger.debug(`   Alternatives:`);
+      topThree.slice(1).forEach((alt, i) => {
+        logger.debug(`   ${i + 2}. ${alt.sub.fileName} (score: ${alt.score.toFixed(1)})`);
+      });
+    }
     
     return best.sub;
   }
