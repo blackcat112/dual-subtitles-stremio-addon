@@ -1,9 +1,13 @@
 import { translate } from 'google-translate-api-x';
 import { logger } from '../utils/logger';
+import { deeplTranslator } from './deepl-translator';
 
 /**
- * Service to handle text translation using Google Translate (Unofficial/Free)
- * Includes caching and simple rate limiting/batching
+ * Service to handle text translation
+ * Priority: DeepL (if configured) → Google Translate (fallback)
+ * 
+ * DeepL: 500k chars/month per key, superior quality (9/10)
+ * Google: Unlimited but rate-limited, good quality (7/10)
  */
 export class TranslatorService {
   private cache: Map<string, string> = new Map();
