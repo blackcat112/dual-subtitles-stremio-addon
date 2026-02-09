@@ -15,6 +15,10 @@ export interface SubtitleResult {
   fileName: string;
   downloads?: number;
   rating?: number;
+  uploadDate?: string | null;
+  uploaderRank?: string | null;
+  season?: number;
+  episode?: number;
 }
 
 export interface SubtitleEntry {

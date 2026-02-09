@@ -212,15 +212,68 @@ export class OpenSubtitlesClient {
     }
   }
 
-  // Helper method remains the same
+  /**
+   * Intelligent subtitle selection using multi-factor scoring
+   * Based on community best practices:
+   * - Trusted/Sub Translator uploaders (higher quality)
+   * - Recent uploads (likely corrections of earlier subs)
+   * - Ratings (user feedback)
+   * - Downloads (popularity, but less weighted)
+   */
   getBestSubtitle(subtitles: SubtitleResult[]): SubtitleResult | null {
     if (subtitles.length === 0) return null;
-    const sorted = [...subtitles].sort((a, b) => {
-      const downloadDiff = (b.downloads || 0) - (a.downloads || 0);
-      if (downloadDiff !== 0) return downloadDiff;
-      return (b.rating || 0) - (a.rating || 0);
+    
+    // Calculate scores for each subtitle
+    const scored = subtitles.map(sub => {
+      let score = 0;
+      
+      // 1. Trusted uploader badge (highest priority)
+      if (sub.uploaderRank) {
+        if (sub.uploaderRank === 'trusted' || sub.uploaderRank === 'sub_translator') {
+          score += 50; // Major boost for quality uploaders
+        } else if (sub.uploaderRank.includes('star')) {
+          score += 20; // Moderate boost for experienced users
+        }
+      }
+      
+      // 2. Upload recency (newer = likely corrected version)
+      if (sub.uploadDate) {
+        const uploadTime = new Date(sub.uploadDate).getTime();
+        const now = Date.now();
+        const daysSinceUpload = (now - uploadTime) / (1000 * 60 * 60 * 24);
+        
+        // Fresh uploads within 30 days get bonus
+        if (daysSinceUpload < 30) {
+          score += 30 - daysSinceUpload; // 30 points if uploaded today, decreasing linearly
+        } else if (daysSinceUpload < 90) {
+          score += 15; // Recent enough
+        }
+      }
+      
+      // 3. Rating (user feedback quality)
+      const rating = sub.rating || 0;
+      if (rating > 0) {
+        score += rating * 4; // Scale 0-5 rating to 0-20 points
+      }
+      
+      // 4. Downloads (least important, but still a signal)
+      const downloads = sub.downloads || 0;
+      const maxDownloads = Math.max(...subtitles.map(s => s.downloads || 0));
+      if (maxDownloads > 0) {
+        score += (downloads / maxDownloads) * 10; // Normalized 0-10 points
+      }
+      
+      return { sub, score };
     });
-    return sorted[0];
+    
+    // Sort by score descending
+    scored.sort((a, b) => b.score - a.score);
+    
+    const best = scored[0];
+    logger.info(`Selected subtitle with score ${best.score.toFixed(1)}: ${best.sub.fileName}`);
+    logger.debug(`  Rank: ${best.sub.uploaderRank || 'none'}, Uploads: ${best.sub.downloads}, Rating: ${best.sub.rating}, Date: ${best.sub.uploadDate || 'unknown'}`);
+    
+    return best.sub;
   }
 }
 
