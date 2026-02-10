@@ -44,7 +44,7 @@ export class LibreTranslateClient {
         source: from,
         target: to,
       }, {
-        timeout: 30000, // 30 seconds timeout
+        timeout: 60000, // 60 seconds timeout (increased from 30s)
       });
       
       return response.data.translatedText;
@@ -61,8 +61,9 @@ export class LibreTranslateClient {
   async translateBatch(texts: string[], from: string, to: string): Promise<string[]> {
     const results: string[] = [];
     
-    // Process in parallel (chunks of 10 to avoid overwhelming the server)
-    const CONCURRENT_REQUESTS = 10;
+    // OPTIMIZED: Reduced to 3 concurrent requests to avoid overwhelming the VPS
+    // Contabo 6 vCPU can handle 3 parallel translations comfortably
+    const CONCURRENT_REQUESTS = 3;
     
     for (let i = 0; i < texts.length; i += CONCURRENT_REQUESTS) {
       const chunk = texts.slice(i, Math.min(i + CONCURRENT_REQUESTS, texts.length));
