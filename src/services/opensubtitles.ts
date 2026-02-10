@@ -261,16 +261,17 @@ export class OpenSubtitlesClient {
       const fileName = sub.fileName?.toLowerCase() || '';
       let releaseScore = 0;
       
-      // STRONG BluRay preference (user's videos are predominantly BluRay)
+      // AGGRESSIVE BluRay preference (user ONLY wants BluRay)
+      // BluRay = best sync, no commercials, no recaps
       if (/bluray|blu-ray|bdrip|brrip/i.test(fileName)) {
-        releaseScore += 15; // Major boost for BluRay
+        releaseScore += 30; // MASSIVE boost for BluRay (doubled from 15)
       }
       
       // Common release types (higher specificity = better match likelihood)
       const releaseTypes = [
         { pattern: /web-?dl|webdl/i, points: 8, name: 'WEB-DL' },
         { pattern: /webrip|web-rip/i, points: 7, name: 'WEBRip' },
-        { pattern: /hdtv|hd-tv/i, points: 5, name: 'HDTV' },  // Reduced: often has recap
+        { pattern: /hdtv|hd-tv/i, points: -10, name: 'HDTV' },  // PENALTY: often has recap/commercials
         { pattern: /dvdrip|dvd-rip/i, points: 4, name: 'DVDRip' },
       ];
       
@@ -290,7 +291,7 @@ export class OpenSubtitlesClient {
       }
       
       // Check for other release types (only if not BluRay)
-      if (releaseScore < 15) {  // Not BluRay
+      if (releaseScore < 30) {  // Not BluRay
         for (const release of releaseTypes) {
           if (release.pattern.test(fileName)) {
             releaseScore += release.points;

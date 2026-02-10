@@ -10,16 +10,19 @@ import { logger } from '../utils/logger';
  */
 export class LibreTranslateClient {
   private apiUrl: string;
+  private apiKey: string;
   private isConfigured: boolean;
 
   constructor() {
     this.apiUrl = process.env.LIBRETRANSLATE_URL || '';
+    this.apiKey = process.env.LIBRETRANSLATE_API_KEY || '';
     this.isConfigured = this.apiUrl.length > 0;
     
     if (!this.isConfigured) {
       logger.warn('⚠️  LIBRETRANSLATE_URL not configured. LibreTranslate disabled.');
     } else {
-      logger.info(`🌐 LibreTranslate configured at ${this.apiUrl}`);
+      const authStatus = this.apiKey ? 'with API key' : 'without API key';
+      logger.info(`🌐 LibreTranslate configured at ${this.apiUrl} (${authStatus})`);
     }
   }
 
@@ -39,11 +42,18 @@ export class LibreTranslateClient {
     }
 
     try {
-      const response = await axios.post(`${this.apiUrl}/translate`, {
+      const requestBody: any = {
         q: text,
         source: from,
         target: to,
-      }, {
+      };
+      
+      // Add API key if configured
+      if (this.apiKey) {
+        requestBody.api_key = this.apiKey;
+      }
+      
+      const response = await axios.post(`${this.apiUrl}/translate`, requestBody, {
         timeout: 60000, // 60 seconds timeout (increased from 30s)
       });
       
