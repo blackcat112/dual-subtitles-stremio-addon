@@ -54,7 +54,7 @@ export class LibreTranslateClient {
       }
       
       const response = await axios.post(`${this.apiUrl}/translate`, requestBody, {
-        timeout: 60000, // 60 seconds timeout (increased from 30s)
+        timeout: 120000, // 120 seconds timeout (increased for long episodes 700+ lines)
       });
       
       return response.data.translatedText;
