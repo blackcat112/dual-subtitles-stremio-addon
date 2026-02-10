@@ -48,7 +48,7 @@ export function mergeSubtitles(
   };
   
   // Target width for the left column to ensure alignment
-  const COL_WIDTH = 60;
+  const COL_WIDTH = 50;
 
   const processedEntries: SubtitleEntry[] = [];
   const usedIndices2 = new Set<number>();
@@ -105,7 +105,7 @@ export function mergeSubtitles(
         if (seg1 && seg2) {
             // Both exist: Join with separator
             // Use padded left side
-            combinedLines.push(`${paddedSeg1}   |   ${seg2}`);
+            combinedLines.push(`${paddedSeg1} | ${seg2}`);
         } else if (seg1) {
             // Only Left
             combinedLines.push(`${seg1}`);
@@ -114,7 +114,7 @@ export function mergeSubtitles(
             // If we have a right line but no left line, we should probably still indent
             // so it appears in the right column
             const emptyLeft = ''.padEnd(COL_WIDTH, ' ');
-            combinedLines.push(`${emptyLeft}   |   ${seg2}`); 
+            combinedLines.push(`${emptyLeft} | ${seg2}`); 
         }
     }
 
