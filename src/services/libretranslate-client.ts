@@ -71,9 +71,9 @@ export class LibreTranslateClient {
   async translateBatch(texts: string[], from: string, to: string): Promise<string[]> {
     const results: string[] = [];
     
-    // CONTROLLED PARALLELISM: 2 concurrent requests
-    // Balance between speed and VPS stability
-    const CONCURRENT_REQUESTS = 2;
+    // OPTIMIZED PARALLELISM: 10 concurrent requests
+    // Based on real VPS testing: 14s for 10 lines = ~17 min for 751 lines
+    const CONCURRENT_REQUESTS = 10;
     
     logger.info(`📊 Starting translation: 0/${texts.length} lines (${CONCURRENT_REQUESTS} concurrent)`);
     
