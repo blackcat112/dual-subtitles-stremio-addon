@@ -65,27 +65,68 @@ export class LibreTranslateClient {
   }
 
   /**
-   * Batch translate multiple texts
-   * LibreTranslate doesn't support native batching, so we process sequentially
+   * Batch translate multiple texts with smart batching
+   * Groups multiple lines together to reduce HTTP overhead
    */
   async translateBatch(texts: string[], from: string, to: string): Promise<string[]> {
     const results: string[] = [];
     
-    // SEQUENTIAL processing to avoid VPS overload
-    // Contabo 6 vCPU handles 1 request at a time more reliably
-    logger.info(`📊 Starting translation: 0/${texts.length} lines`);
+    // SMART BATCHING: Group 10 lines per request
+    // 751 lines ÷ 10 = ~75 requests (instead of 751)
+    const BATCH_SIZE = 10;
+    const SEPARATOR = '\n####SPLIT####\n'; // Unique separator unlikely to appear in subtitles
     
-    for (let i = 0; i < texts.length; i++) {
-      const translated = await this.translate(texts[i], from, to);
-      results.push(translated);
+    logger.info(`📊 Starting batched translation: 0/${texts.length} lines (${Math.ceil(texts.length / BATCH_SIZE)} batches)`);
+    
+    for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+      const chunk = texts.slice(i, Math.min(i + BATCH_SIZE, texts.length));
       
-      // Progress logging every 50 lines
-      if ((i + 1) % 50 === 0 || (i + 1) === texts.length) {
-        logger.info(`📊 Translation progress: ${i + 1}/${texts.length} lines completed`);
+      // Join multiple lines with separator
+      const batchedText = chunk.join(SEPARATOR);
+      
+      try {
+        // Translate the entire batch as one request
+        const translatedBatch = await this.translate(batchedText, from, to);
+        
+        // Split the response back into individual lines
+        const translatedLines = translatedBatch.split(SEPARATOR);
+        
+        // Handle mismatch (LibreTranslate might return fewer splits)
+        if (translatedLines.length !== chunk.length) {
+          logger.warn(`⚠️ Batch split mismatch: expected ${chunk.length}, got ${translatedLines.length}. Using line-by-line fallback.`);
+          
+          // Fallback: translate each line individually
+          for (const text of chunk) {
+            const translated = await this.translate(text, from, to);
+            results.push(translated);
+          }
+        } else {
+          // Success: add all translated lines
+          results.push(...translatedLines);
+        }
+      } catch (error: any) {
+        logger.error(`❌ Batch translation failed: ${error.message}. Falling back to line-by-line.`);
+        
+        // Fallback: translate each line individually
+        for (const text of chunk) {
+          try {
+            const translated = await this.translate(text, from, to);
+            results.push(translated);
+          } catch (lineError: any) {
+            logger.error(`❌ Line translation failed: ${lineError.message}. Using original.`);
+            results.push(text); // Use original text on error
+          }
+        }
+      }
+      
+      // Progress logging every ~100 lines
+      if ((i + BATCH_SIZE) % 100 === 0 || (i + chunk.length) >= texts.length) {
+        const completed = Math.min(i + chunk.length, texts.length);
+        logger.info(`📊 Translation progress: ${completed}/${texts.length} lines (${Math.ceil(completed / BATCH_SIZE)}/${Math.ceil(texts.length / BATCH_SIZE)} batches)`);
       }
     }
     
-    logger.info(`✅ Translation complete: ${texts.length}/${texts.length} lines`);
+    logger.info(`✅ Batched translation complete: ${texts.length}/${texts.length} lines`);
     return results;
   }
 }
