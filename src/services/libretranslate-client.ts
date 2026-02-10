@@ -66,26 +66,26 @@ export class LibreTranslateClient {
 
   /**
    * Batch translate multiple texts
-   * LibreTranslate doesn't support native batching, so we process in parallel
+   * LibreTranslate doesn't support native batching, so we process sequentially
    */
   async translateBatch(texts: string[], from: string, to: string): Promise<string[]> {
     const results: string[] = [];
     
-    // OPTIMIZED: Reduced to 3 concurrent requests to avoid overwhelming the VPS
-    // Contabo 6 vCPU can handle 3 parallel translations comfortably
-    const CONCURRENT_REQUESTS = 3;
+    // SEQUENTIAL processing to avoid VPS overload
+    // Contabo 6 vCPU handles 1 request at a time more reliably
+    logger.info(`📊 Starting translation: 0/${texts.length} lines`);
     
-    for (let i = 0; i < texts.length; i += CONCURRENT_REQUESTS) {
-      const chunk = texts.slice(i, Math.min(i + CONCURRENT_REQUESTS, texts.length));
-      const promises = chunk.map(text => this.translate(text, from, to));
-      const translated = await Promise.all(promises);
-      results.push(...translated);
+    for (let i = 0; i < texts.length; i++) {
+      const translated = await this.translate(texts[i], from, to);
+      results.push(translated);
       
-      if ((i + CONCURRENT_REQUESTS) % 50 === 0) {
-        logger.debug(`LibreTranslate: ${i + chunk.length}/${texts.length} lines translated`);
+      // Progress logging every 50 lines
+      if ((i + 1) % 50 === 0 || (i + 1) === texts.length) {
+        logger.info(`📊 Translation progress: ${i + 1}/${texts.length} lines completed`);
       }
     }
     
+    logger.info(`✅ Translation complete: ${texts.length}/${texts.length} lines`);
     return results;
   }
 }
