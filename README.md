@@ -28,7 +28,7 @@
    ```
 4. **Click "Install"** and you're done! 🎉
 
-> **⏱️ First-time note:** The first subtitle generation for a new movie/episode takes **8-10 minutes**. After that, it's cached and loads **instantly** for everyone.
+> **⏱️ First-time note:** The first subtitle generation for a new movie/episode takes **2-3 minutes**. After that, it's cached and loads **instantly** for everyone.
 
 ---
 
@@ -78,12 +78,12 @@ graph LR
 
 1. **Download**: Fetch the best BluRay subtitle file for the base language (e.g., Spanish)
 2. **Parse**: Extract text and timestamps using SRT parser
-3. **Translate**: Send text in parallel batches to self-hosted LibreTranslate (3 concurrent requests)
+3. **Translate**: Send text in parallel batches to self-hosted LibreTranslate (4 concurrent requests)
 4. **Reconstruct**: Create a "virtual" translated SRT using the **exact same timestamps**
 5. **Merge**: Combine both SRTs side-by-side with visual formatting
 6. **Cache**: Store for 24h to speed up future requests
 
-**Performance**: ~8-10 minutes for a typical 700-line episode (first time), instant cache hits thereafter.
+**Performance**: ~2-3 minutes for a typical 700-line episode (first time), instant cache hits thereafter.
 
 ---
 
@@ -123,7 +123,7 @@ LibreTranslate provides unlimited, high-quality translations without external AP
 #### Option A: Contabo VPS (Recommended - €5/month)
 
 **Specs**: 6 vCPU, 12GB RAM, 100GB NVMe  
-**Performance**: 8-10 min per episode
+**Performance**: 2-3 min per episode
 
 1. **Create VPS**:
    - Go to [Contabo Cloud VPS](https://contabo.com/en/vps/cloud-vps-1/)
@@ -328,9 +328,9 @@ This ensures the best sync quality for your video sources.
 
 | Episode Length | Lines | LibreTranslate Time | Cache Hit |
 |---------------|-------|---------------------|-----------|
-| Short (20 min) | ~400 | 5-6 minutes | Instant |
-| Standard (45 min) | ~700 | 8-10 minutes | Instant |
-| Long (60+ min) | ~1000 | 12-15 minutes | Instant |
+| Short (20 min) | ~400 | 1-2 minutes | Instant |
+| Standard (45 min) | ~700 | 2-3 minutes | Instant |
+| Long (60+ min) | ~1000 | 4-5 minutes | Instant |
 
 ### Cost Breakdown
 
