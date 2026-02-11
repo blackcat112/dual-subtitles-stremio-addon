@@ -64,44 +64,91 @@ export class LibreTranslateClient {
     }
   }
 
+
+  /**
+   * Translate multiple texts in a single API call (native batch support)
+   */
+  async translateBatchNative(texts: string[], from: string, to: string): Promise<string[]> {
+    if (texts.length === 0) {
+      return [];
+    }
+
+    try {
+      const requestBody: any = {
+        q: texts, // LibreTranslate supports array of strings
+        source: from,
+        target: to,
+      };
+      
+      // Add API key if configured
+      if (this.apiKey) {
+        requestBody.api_key = this.apiKey;
+      }
+      
+      const response = await axios.post(`${this.apiUrl}/translate`, requestBody, {
+        timeout: 120000, // 120 seconds timeout
+      });
+      
+      // Response format: { translatedText: ["text1", "text2", ...] }
+      return Array.isArray(response.data.translatedText) 
+        ? response.data.translatedText 
+        : [response.data.translatedText];
+    } catch (error: any) {
+      logger.error(`LibreTranslate batch error: ${error.message}`);
+      throw error;
+    }
+  }
+
   /**
    * Batch translate multiple texts with controlled parallelism
-   * Process 2 requests at a time to balance speed and VPS stability
+   * Uses native batch API to reduce HTTP overhead
    */
   async translateBatch(texts: string[], from: string, to: string): Promise<string[]> {
     const results: string[] = [];
     
-    // OPTIMIZED PARALLELISM: 6 concurrent requests
-    // Based on VPS monitoring: balanced performance (150ms/line) with healthy CPU usage (~75%)
-    const CONCURRENT_REQUESTS = 6;
+    // OPTIMIZED PARALLELISM: 5 concurrent batch requests (20 lines per batch)
+    // Production data: 650 lines in 4min (~37s/100 lines), CPU ~85%
+    const CONCURRENT_BATCHES = 5;
+    const BATCH_SIZE = 20; // Translate 20 lines per batch API call
     
-    logger.info(`📊 Starting translation: 0/${texts.length} lines (${CONCURRENT_REQUESTS} concurrent)`);
+    logger.info(`📊 Starting translation: 0/${texts.length} lines (${CONCURRENT_BATCHES} concurrent batches of ${BATCH_SIZE})...`);
     
-    for (let i = 0; i < texts.length; i += CONCURRENT_REQUESTS) {
-      const chunk = texts.slice(i, Math.min(i + CONCURRENT_REQUESTS, texts.length));
+    for (let i = 0; i < texts.length; i += CONCURRENT_BATCHES * BATCH_SIZE) {
+      const batchPromises = [];
+      
+      // Create up to CONCURRENT_BATCHES parallel requests, each handling BATCH_SIZE lines
+      for (let j = 0; j < CONCURRENT_BATCHES; j++) {
+        const startIdx = i + (j * BATCH_SIZE);
+        const endIdx = Math.min(startIdx + BATCH_SIZE, texts.length);
+        
+        if (startIdx < texts.length) {
+          const chunk = texts.slice(startIdx, endIdx);
+          batchPromises.push(this.translateBatchNative(chunk, from, to));
+        }
+      }
       
       try {
-        const promises = chunk.map(text => this.translate(text, from, to));
-        const translated = await Promise.all(promises);
-        results.push(...translated);
+        const batchResults = await Promise.all(batchPromises);
+        // Flatten the array of arrays into a single array
+        results.push(...batchResults.flat());
       } catch (error: any) {
-        logger.error(`❌ Parallel translation failed: ${error.message}. Falling back to sequential.`);
+        logger.error(`❌ Batch translation failed: ${error.message}. Falling back to individual translation.`);
         
-        // Fallback: translate each line individually
-        for (const text of chunk) {
+        // Fallback: translate remaining lines individually
+        for (let k = i; k < Math.min(i + CONCURRENT_BATCHES * BATCH_SIZE, texts.length); k++) {
           try {
-            const translated = await this.translate(text, from, to);
+            const translated = await this.translate(texts[k], from, to);
             results.push(translated);
           } catch (lineError: any) {
             logger.error(`❌ Line translation failed: ${lineError.message}. Using original.`);
-            results.push(text);
+            results.push(texts[k]);
           }
         }
       }
       
       // Progress logging every 100 lines
-      if ((i + CONCURRENT_REQUESTS) % 100 === 0 || (i + chunk.length) >= texts.length) {
-        const completed = Math.min(i + chunk.length, texts.length);
+      if ((i + CONCURRENT_BATCHES * BATCH_SIZE) % 100 === 0 || results.length >= texts.length) {
+        const completed = Math.min(results.length, texts.length);
         logger.info(`📊 Translation progress: ${completed}/${texts.length} lines`);
       }
     }
@@ -109,6 +156,8 @@ export class LibreTranslateClient {
     logger.info(`✅ Translation complete: ${texts.length}/${texts.length} lines`);
     return results;
   }
+
 }
 
 export const libreTranslateClient = new LibreTranslateClient();
+
