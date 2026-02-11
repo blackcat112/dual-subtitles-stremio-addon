@@ -106,9 +106,10 @@ export class LibreTranslateClient {
   async translateBatch(texts: string[], from: string, to: string): Promise<string[]> {
     const results: string[] = [];
     
-    // OPTIMIZED PARALLELISM: 5 concurrent batch requests (20 lines per batch)
-    // Production data: 650 lines in 4min (~37s/100 lines), CPU ~85%
-    const CONCURRENT_BATCHES = 5;
+    // OPTIMIZED PARALLELISM: 2 concurrent batch requests (20 lines per batch)
+    // 2 batches × 20 lines = 40 lines in parallel (10x better than 4 individual concurrent)
+    // Lower CPU usage while maintaining excellent performance
+    const CONCURRENT_BATCHES = 2;
     const BATCH_SIZE = 20; // Translate 20 lines per batch API call
     
     logger.info(`📊 Starting translation: 0/${texts.length} lines (${CONCURRENT_BATCHES} concurrent batches of ${BATCH_SIZE})...`);
