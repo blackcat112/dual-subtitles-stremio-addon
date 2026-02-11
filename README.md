@@ -10,7 +10,7 @@
 
 </div>
 
-![Dual Subtitles in Action](public/captura.png)
+![Dual Subtitles in Action](public/captura1.png)
 
 ---
 
@@ -102,7 +102,7 @@ Dual 🇫🇷 🇪🇸  [FR] Français ➜ Español (AI)
 ```
 
 ### Playback Result
-![Side-by-Side Subtitles](public/captura.png)
+![Side-by-Side Subtitles](public/captura1.png)
 ---
 ![Side-by-Side Subtitles](public/captura3.png)
 ---
