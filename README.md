@@ -28,7 +28,7 @@
    ```
 4. **Click "Install"** and you're done! 🎉
 
-> **⏱️ First-time note:** The first subtitle generation for a new movie/episode takes **3-5 minutes** (~40 sec per 100 lines). After that, it's cached and loads **instantly** for everyone.
+> **⏱️ First-time note:** The first subtitle generation for a new movie/episode takes **3-6 minutes** (~45 sec per 100 lines). After that, it's cached and loads **instantly** for everyone.
 
 ---
 
@@ -78,12 +78,12 @@ graph LR
 
 1. **Download**: Fetch the best BluRay subtitle file for the base language (e.g., Spanish)
 2. **Parse**: Extract text and timestamps using SRT parser
-3. **Translate**: Send text in parallel batches to self-hosted LibreTranslate (8 concurrent requests)
+3. **Translate**: Send text in parallel batches to self-hosted LibreTranslate (6 concurrent requests)
 4. **Reconstruct**: Create a "virtual" translated SRT using the **exact same timestamps**
 5. **Merge**: Combine both SRTs side-by-side with visual formatting
 6. **Cache**: Store for 24h to speed up future requests
 
-**Performance**: ~5 minutes for a typical 700-line episode (~40 sec per 100 lines), instant cache hits thereafter.
+**Performance**: ~5 minutes for a typical 700-line episode (~45 sec per 100 lines), instant cache hits thereafter.
 
 ---
 
@@ -123,7 +123,7 @@ LibreTranslate provides unlimited, high-quality translations without external AP
 #### Option A: Contabo VPS (Recommended - €5/month)
 
 **Specs**: 6 vCPU, 12GB RAM, 100GB NVMe  
-**Performance**: ~40 sec per 100 lines (~5 min for typical episode)
+**Performance**: ~45 sec per 100 lines (~5-6 min for typical episode)
 
 1. **Create VPS**:
    - Go to [Contabo Cloud VPS](https://contabo.com/en/vps/cloud-vps-1/)
@@ -337,11 +337,11 @@ This ensures the best sync quality for your video sources.
 
 | Episode Length | Lines | LibreTranslate Time | Cache Hit |
 |---------------|-------|---------------------|-----------|
-| Short (20 min) | ~400 | ~2.5 minutes | Instant |
+| Short (20 min) | ~400 | ~3 minutes | Instant |
 | Standard (45 min) | ~700 | ~5 minutes | Instant |
-| Long (60+ min) | ~1000 | ~7 minutes | Instant |
+| Long (60+ min) | ~1000 | ~7.5 minutes | Instant |
 
-**Rate**: ~40 seconds per 100 lines (8 concurrent requests)
+**Rate**: ~45 seconds per 100 lines (6 concurrent requests, optimal balance)
 
 ### Cost Breakdown
 
