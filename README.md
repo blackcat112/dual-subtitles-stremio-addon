@@ -14,9 +14,9 @@
 
 ---
 
-## 🎯 Quick Start
+## Quick Start
 
-### 🚀 Use the Hosted Version (Recommended)
+### Use the Hosted Version (Recommended)
 
 **No setup required** - Just add the addon URL:
 
@@ -26,32 +26,32 @@
    ```
    https://dual-subtitles-stremio-addon.onrender.com/manifest.json
    ```
-4. **Click "Install"** and you're done! 🎉
+4. **Click "Install"** and you're done!
 
-> **⏱️ First-time note:** The first subtitle generation for a new movie/episode takes **6-7 minutes** (~55 sec per 100 lines). After that, it's cached and loads **instantly** for everyone.
+> **First-time note:** The first subtitle generation for a new movie/episode takes **6 minutes** (~50 sec per 100 lines). After that, it's cached and loads **instantly** for everyone.
 
 ---
 
-## ✨ Features
+## Features
 
 ### **Perfect Synchronization (AI-Powered)**
 - **One Source, Perfect Sync**: Downloads a single high-quality subtitle and translates it line-by-line using AI
 - **Zero Timing Gaps**: Unlike dual-file approaches, translation ensures timestamps are **mathematically identical**
 - **Smart Caching**: 24-hour cache means subsequent loads are instant
 
-### 🌐 **Supported Language Pairings**
+### **Supported Language Pairings**
 | Base Language | Translated To |
 |--------------|---------------|
 | 🇪🇸 **Spanish** | English, Français |
 | 🇬🇧 **English** | Español, Français |
 | 🇫🇷 **French** | English, Español |
 
-### 🎨 **Visual Design**
+### **Visual Design**
 - **Side-by-Side Layout**: `Original Text  |  Translated Text`
 - **Italics Differentiation**: Secondary language is styled in *italics* for easy distinction
 - **Optimized Padding**: Fixed-width columns for visual alignment
 
-### ⚙️ **Technical Highlights**
+### **Technical Highlights**
 - **Self-Hosted Translation**: LibreTranslate on private VPS (no rate limits, 100% control)
 - **API Key Rotation**: Built-in rotation across 10 OpenSubtitles keys for high availability
 - **BluRay Priority**: Intelligent subtitle selection favoring BluRay releases for perfect sync
@@ -59,7 +59,7 @@
 
 ---
 
-## 🛠️ How It Works
+## How It Works
 
 ### Architecture Overview
 
@@ -83,11 +83,11 @@ graph LR
 5. **Merge**: Combine both SRTs side-by-side with visual formatting
 6. **Cache**: Store for 24h to speed up future requests
 
-**Performance**: ~6-7 minutes for a typical 700-line episode (~55 sec per 100 lines), instant cache hits thereafter.
+**Performance**: ~6 minutes for a typical 700-line episode (~50 sec per 100 lines), instant cache hits thereafter.
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 ### In-App Experience
 The addon appears in Stremio's subtitle menu with clear language indicators:
@@ -108,7 +108,7 @@ Dual 🇫🇷 🇪🇸  [FR] Français ➜ Español (AI)
 
 ---
 
-## 💻 Self-Hosting Guide
+## Self-Hosting Guide
 
 ### Prerequisites
 
@@ -123,7 +123,7 @@ LibreTranslate provides unlimited, high-quality translations without external AP
 #### Option A: Contabo VPS (Recommended - €5/month)
 
 **Specs**: 6 vCPU, 12GB RAM, 100GB NVMe  
-**Performance**: ~55 sec per 100 lines (~6-7 min for typical episode)
+**Performance**: ~50 sec per 100 lines (~6 min for typical episode)
 
 1. **Create VPS**:
    - Go to [Contabo Cloud VPS](https://contabo.com/en/vps/cloud-vps-1/)
@@ -197,7 +197,7 @@ LibreTranslate provides unlimited, high-quality translations without external AP
      -H "Content-Type: application/json" \
      -d '{"q":"Hello","source":"en","target":"es"}'
    ```
-
+   
    Should return: `{"translatedText":"Hola"}`
 
 ---
@@ -261,7 +261,7 @@ The addon will be available at `http://localhost:7001/manifest.json`
 
 ---
 
-## 🧪 Technical Stack
+## Technical Stack
 
 | Component | Technology |
 |-----------|-----------|
@@ -276,7 +276,7 @@ The addon will be available at `http://localhost:7001/manifest.json`
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 dual-subtitles-addon/
@@ -290,7 +290,7 @@ dual-subtitles-addon/
 │   │   ├── libretranslate-client.ts # LibreTranslate VPS client
 │   │   ├── translator.ts           # Translation orchestration
 │   │   ├── subtitleFetcher.ts      # Download & translation pipeline
-│   │   └── subtitleMerger.ts       # Side-by-side formatting
+│   │   ├── subtitleMerger.ts       # Side-by-side formatting
 │   └── utils/
 │       ├── cache.ts                # In-memory caching
 │       ├── srtParser.ts            # SRT parsing/serialization
@@ -305,7 +305,7 @@ dual-subtitles-addon/
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -331,17 +331,17 @@ This ensures the best sync quality for your video sources.
 
 ---
 
-## 🚀 Performance
+## Performance
 
 ### Translation Speed
 
 | Episode Length | Lines | LibreTranslate Time | Cache Hit |
 |---------------|-------|---------------------|-----------|
-| Short (20 min) | ~400 | ~3.5 minutes | Instant |
-| Standard (45 min) | ~700 | ~6-7 minutes | Instant |
-| Long (60+ min) | ~1000 | ~9 minutes | Instant |
+| Short (20 min) | ~400 | ~3-4 minutes | Instant |
+| Standard (45 min) | ~700 | ~6 minutes | Instant |
+| Long (60+ min) | ~1000 | ~8-9 minutes | Instant |
 
-**Rate**: ~55 seconds per 100 lines (3 concurrent requests, benchmarked)
+**Rate**: ~50 seconds per 100 lines (3 concurrent requests, production usage)
 
 ### Cost Breakdown
 
@@ -354,7 +354,7 @@ This ensures the best sync quality for your video sources.
 
 ---
 
-## ⚠️ Known Limitations
+## Known Limitations
 
 ### OpenSubtitles API Quota
 - Free tier: **5 downloads/day** per key
@@ -371,7 +371,7 @@ This ensures the best sync quality for your video sources.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Here's how:
 
@@ -388,36 +388,36 @@ Contributions are welcome! Here's how:
 
 ---
 
-## 📜 License
+## License
 
 This project is licensed under the **MIT License** - see [LICENSE](LICENSE) file for details.
 
 You are free to:
-- ✅ Use commercially
-- ✅ Modify
-- ✅ Distribute
-- ✅ Private use
+- Use commercially
+- Modify
+- Distribute
+- Private use
 
 ---
 
-## 👨‍💻 Author
+## Author
 
 **Nicolas Becas**
-- 💼 LinkedIn: [linkedin.com/in/nicolasbecas](https://linkedin.com/in/nicolasbecas)
-- 🐙 GitHub: [@blackcat112](https://github.com/blackcat112)
+- LinkedIn: [linkedin.com/in/nicolasbecas](https://linkedin.com/in/nicolasbecas)
+- GitHub: [@blackcat112](https://github.com/blackcat112)
 
 ---
 
-## ⭐ Support
+## Support
 
 If this addon helped you learn a new language or improved your viewing experience:
-- ⭐ **Star this repo** on GitHub
-- 🐛 **Report bugs** via [Issues](https://github.com/blackcat112/dual-subtitles-stremio-addon/issues)
-- 💡 **Suggest features** for future updates
+- **Star this repo** on GitHub
+- **Report bugs** via [Issues](https://github.com/blackcat112/dual-subtitles-stremio-addon/issues)
+- **Suggest features** for future updates
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [Stremio](https://www.stremio.com/) for the amazing platform
 - [OpenSubtitles](https://www.opensubtitles.com/) for subtitle data
