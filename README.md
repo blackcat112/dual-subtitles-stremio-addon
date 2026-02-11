@@ -28,7 +28,7 @@
    ```
 4. **Click "Install"** and you're done! 🎉
 
-> **⏱️ First-time note:** The first subtitle generation for a new movie/episode takes **2-3 minutes**. After that, it's cached and loads **instantly** for everyone.
+> **⏱️ First-time note:** The first subtitle generation for a new movie/episode takes **4-8 minutes** (~1 min per 100 lines). After that, it's cached and loads **instantly** for everyone.
 
 ---
 
@@ -83,7 +83,7 @@ graph LR
 5. **Merge**: Combine both SRTs side-by-side with visual formatting
 6. **Cache**: Store for 24h to speed up future requests
 
-**Performance**: ~2-3 minutes for a typical 700-line episode (first time), instant cache hits thereafter.
+**Performance**: ~7 minutes for a typical 700-line episode (~1 min per 100 lines), instant cache hits thereafter.
 
 ---
 
@@ -123,7 +123,7 @@ LibreTranslate provides unlimited, high-quality translations without external AP
 #### Option A: Contabo VPS (Recommended - €5/month)
 
 **Specs**: 6 vCPU, 12GB RAM, 100GB NVMe  
-**Performance**: 2-3 min per episode
+**Performance**: ~1 min per 100 lines (~7 min for typical episode)
 
 1. **Create VPS**:
    - Go to [Contabo Cloud VPS](https://contabo.com/en/vps/cloud-vps-1/)
@@ -149,7 +149,7 @@ LibreTranslate provides unlimited, high-quality translations without external AP
    nano docker-compose.yml
    ```
 
-   Paste this configuration:
+   Paste this **optimized** configuration:
    ```yaml
    version: '3.8'
    services:
@@ -158,33 +158,42 @@ LibreTranslate provides unlimited, high-quality translations without external AP
        container_name: libretranslate
        restart: unless-stopped
        ports:
-         - "5000:5000"
+         - "8080:5000"
        environment:
          LT_LOAD_ONLY: "en,es,fr"
          LT_HOST: "0.0.0.0"
-         LT_THREADS: "6"
-         LT_CHAR_LIMIT: "5000"
-       volumes:
-         - ./models:/home/libretranslate/.local/share/argos-translate
+         LT_CHAR_LIMIT: "100000"       # High limit for batch processing
+         LT_REQ_LIMIT: "0"              # No request limit
+         LT_THREADS: "6"                # Match vCPU count
+         ARGOS_VERSION_EN_ES: "1.0.0"   # Pin specific model version
+         LT_BATCH_LIMIT: "100"          # Allow batch translations
+       # No volume mounts - Docker manages model storage internally
+       healthcheck:
+         test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+         interval: 30s
+         timeout: 10s
+         retries: 3
+         start_period: 120s
    ```
 
 5. **Start LibreTranslate**:
    ```bash
-   mkdir -p models && chmod -R 777 models
    docker-compose up -d
    ```
+   
+   > **Note**: First startup takes ~2-3 minutes to download language models. Check logs with `docker logs -f libretranslate`
 
 6. **Configure Firewall**:
    ```bash
    apt install ufw -y
    ufw allow 22/tcp
-   ufw allow 5000/tcp
+   ufw allow 8080/tcp
    ufw enable
    ```
 
 7. **Test**:
    ```bash
-   curl -X POST http://localhost:5000/translate \
+   curl -X POST http://localhost:8080/translate \
      -H "Content-Type: application/json" \
      -d '{"q":"Hello","source":"en","target":"es"}'
    ```
@@ -218,7 +227,7 @@ Edit `.env`:
 OPENSUBTITLES_API_KEYS=key1,key2,key3,key4,key5,key6,key7,key8,key9,key10
 
 # LibreTranslate URL (your VPS IP)
-LIBRETRANSLATE_URL=http://YOUR_VPS_IP:5000
+LIBRETRANSLATE_URL=http://YOUR_VPS_IP:8080
 
 # Optional: Custom port
 PORT=7001
@@ -247,7 +256,7 @@ The addon will be available at `http://localhost:7001/manifest.json`
    - **Start Command**: `npm start`
    - **Environment Variables**:
      - `OPENSUBTITLES_API_KEYS`: Your comma-separated keys
-     - `LIBRETRANSLATE_URL`: `http://YOUR_VPS_IP:5000`
+     - `LIBRETRANSLATE_URL`: `http://YOUR_VPS_IP:8080`
 5. **Deploy** and use the provided URL
 
 ---
@@ -328,9 +337,11 @@ This ensures the best sync quality for your video sources.
 
 | Episode Length | Lines | LibreTranslate Time | Cache Hit |
 |---------------|-------|---------------------|-----------|
-| Short (20 min) | ~400 | 1-2 minutes | Instant |
-| Standard (45 min) | ~700 | 2-3 minutes | Instant |
-| Long (60+ min) | ~1000 | 4-5 minutes | Instant |
+| Short (20 min) | ~400 | ~4 minutes | Instant |
+| Standard (45 min) | ~700 | ~7 minutes | Instant |
+| Long (60+ min) | ~1000 | ~10 minutes | Instant |
+
+**Rate**: ~1 minute per 100 lines (4 concurrent requests)
 
 ### Cost Breakdown
 
