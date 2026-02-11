@@ -104,6 +104,8 @@ Dual 🇫🇷 🇪🇸  [FR] Français ➜ Español (AI)
 ### Playback Result
 ![Side-by-Side Subtitles](public/captura.png)
 ---
+![Side-by-Side Subtitles](public/captura3.png)
+---
 ![Side-by-Side Subtitles](public/capturaEs-EN.png)
 
 ---
