@@ -28,8 +28,13 @@
    ```
 4. **Click "Install"** and you're done!
 
+
 > **First-time note:** The first subtitle generation for a new movie/episode takes **6 minutes** (~50 sec per 100 lines). After that, it's cached and loads **instantly** for everyone.
 
+> [!WARNING]
+> **Important Usage Tips:**
+> 1. **Installation:** If the manifest URL doesn't work, the Render server is sleeping. **Wait 1 minute** and try again.
+> 2. **Loading:** Select the subtitle you want (to start generation), **wait 10 minutes** (recommended), then **select it again** to load it.
 ---
 
 ## Features
